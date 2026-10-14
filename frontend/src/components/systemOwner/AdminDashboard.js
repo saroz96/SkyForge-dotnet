@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import QuikCard from './pages/QuikCard';
-// import '../../App.css'; // Make sure to import your CSS
 import Sidebar from './layout/Sidebar';
 
 const AdminDashboard = () => {

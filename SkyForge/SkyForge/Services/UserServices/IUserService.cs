@@ -52,5 +52,7 @@ namespace SkyForge.Services.UserServices
 
         Task<User> GetUserWithCompanyAccessAsync(Guid userId, Guid companyId);
         Task<bool> UserHasRoleAsync(Guid userId, string roleName);
+
+        Task<Guid?> GetUserPrimaryCompanyIdAsync(Guid userId);
     }
 }

@@ -152,6 +152,10 @@ import UpdateBalancesPage from './components/fiscalYear/UpdateBalancesPage';
 import DayBook from './components/retailer/dayBook/DayBook';
 import PublicSharePage from './components/retailer/miscellaneous/PublicSharePage';
 import PublicShareStatement from './components/retailer/miscellaneous/PublicShareStatement';
+import RegisterDevice from './components/credential/RegisterDevice';
+import PendingApproval from './components/credential/PendingApproval';
+import DeviceApprovalQueue from './components/systemOwner/pages/DeviceApprovalQueue';
+import ApprovedDevices from './components/company/ApprovedDevices';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === 'production' ? 'https://api.amsacc.com' : 'http://localhost:5142');
@@ -199,6 +203,10 @@ function AppContent() {
               element={!currentUser ? <LoginForm /> : <Navigate to="/dashboard" replace />}
             />
 
+            {/* Device verification routes */}
+            <Route path="/auth/register-device" element={<RegisterDevice />} />
+            <Route path="/auth/pending-approval" element={<PendingApproval />} />
+
             <Route path="/disaster-recovery" element={<DisasterRecoveryProtocol />} />
 
             {/* Protected Routes */}
@@ -215,11 +223,27 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/company/approved-devices"
+              element={
+                <ProtectedRoute>
+                  <ApprovedDevices />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/admin-dashboard" element={
               <ProtectedRoute>
                 <AdminDashboard />
               </ProtectedRoute>
             } />
+            <Route
+              path="/admin/devices"
+              element={
+                <ProtectedRoute>
+                  <DeviceApprovalQueue />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/attendance"
               element={

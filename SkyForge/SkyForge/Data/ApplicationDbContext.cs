@@ -41,6 +41,8 @@ namespace SkyForge.Data
         }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<UserDevice> UserDevices { get; set; }
+        public DbSet<DeviceAuditLog> DeviceAuditLogs { get; set; }
         public DbSet<Company> Companies { get; set; }
         public DbSet<Settings> CompanySettings { get; set; }
         public DbSet<FiscalYear> FiscalYears { get; set; }
@@ -1046,6 +1048,32 @@ namespace SkyForge.Data
                         v => v != null ? JsonSerializer.Deserialize<Dictionary<string, bool>>(v, (JsonSerializerOptions)null) : null)
                     .HasColumnType("jsonb")
                     .Metadata.SetValueComparer(dictionaryStringBoolComparer);
+            });
+
+            // UserDevice configuration
+            modelBuilder.Entity<UserDevice>(entity =>
+            {
+                entity.HasIndex(e => e.DeviceFingerprint);
+                entity.HasIndex(e => new { e.UserId, e.DeviceFingerprint }).IsUnique();
+                entity.HasIndex(e => e.Status);
+
+                entity.HasOne(e => e.User)
+                    .WithMany(u => u.Devices)
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.ApprovedBy)
+                    .WithMany()
+                    .HasForeignKey(e => e.ApprovedById)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // DeviceAuditLog configuration
+            modelBuilder.Entity<DeviceAuditLog>(entity =>
+            {
+                entity.HasIndex(e => e.DeviceId);
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.CreatedAt);
             });
 
             // Configure Company entity

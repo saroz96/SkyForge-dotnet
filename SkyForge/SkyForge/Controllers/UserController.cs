@@ -13,6 +13,7 @@ using SkyForge.Models.CompanyModel;
 using SkyForge.Models.RoleModel;
 using SkyForge.Models.UserModel;
 using SkyForge.Services;
+using SkyForge.Services.DeviceServices;
 using SkyForge.Services.UserServices;
 using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
@@ -33,6 +34,7 @@ namespace SkyForge.Controllers
         private readonly IConfiguration _configuration;
         private readonly ICompanyService _companyService;
         private readonly IPasswordService _passwordService;
+        private readonly IDeviceVerificationService _deviceVerificationService;
         private readonly ILogger<UserController> _logger;
 
         public UserController(
@@ -43,6 +45,7 @@ namespace SkyForge.Controllers
             IConfiguration configuration,
             ICompanyService companyService,
             IPasswordService passwordService,
+            IDeviceVerificationService deviceVerificationService,
             ILogger<UserController> logger)
         {
             _userService = userService;
@@ -52,6 +55,7 @@ namespace SkyForge.Controllers
             _configuration = configuration;
             _companyService = companyService;
             _passwordService = passwordService;
+            _deviceVerificationService = deviceVerificationService;
             _logger = logger;
         }
         private string GenerateRefreshToken()
@@ -2658,62 +2662,199 @@ namespace SkyForge.Controllers
             }
         }
 
+        // [HttpPost("login")]
+        // public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        // {
+        //     var user = await _userService.AuthenticateAsync(request.Email!, request.Password!);
+        //     if (user == null)
+        //         return Unauthorized(new { success = false, error = "Invalid email or password" });
+
+        //     if (!user.IsEmailVerified)
+        //         return Unauthorized(new { success = false, error = "Please verify your email before logging in" });
+
+        //     if (!user.IsActive)
+        //         return Unauthorized(new { success = false, error = "Account is deactivated" });
+
+        //     // Get user's primary role
+        //     var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
+
+        //     // Get user's companies
+        //     var userCompanies = await GetUserCompanies(user.Id);
+
+        //     // Generate JWT Token
+        //     var token = GenerateJwtToken(user, primaryRole);
+
+        //     // Generate Refresh Token
+        //     var refreshToken = GenerateRefreshToken();
+
+        //     // Update user with refresh token and activity tracking
+        //     user.RefreshToken = refreshToken;
+        //     user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7); // Refresh token valid for 7 days
+        //     user.LastActivityAt = DateTime.UtcNow;
+        //     user.UpdatedAt = DateTime.UtcNow;
+
+        //     await _context.SaveChangesAsync();
+
+        //     return Ok(new
+        //     {
+        //         success = true,
+        //         token = token,
+        //         refreshToken = refreshToken,
+        //         user = new
+        //         {
+        //             id = user.Id,
+        //             name = user.Name,
+        //             email = user.Email,
+        //             role = primaryRole?.Name,
+        //             roleId = primaryRole?.Id,
+        //             isAdmin = user.IsAdmin,
+        //             isEmailVerified = user.IsEmailVerified,
+        //             preferences = user.Preferences,
+        //             menuPermissions = user.MenuPermissions
+        //         },
+        //         companies = userCompanies,
+        //         message = "Login successful",
+        //         expiresIn = 3600
+        //     });
+        // }
+
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var user = await _userService.AuthenticateAsync(request.Email!, request.Password!);
-            if (user == null)
-                return Unauthorized(new { success = false, error = "Invalid email or password" });
-
-            if (!user.IsEmailVerified)
-                return Unauthorized(new { success = false, error = "Please verify your email before logging in" });
-
-            if (!user.IsActive)
-                return Unauthorized(new { success = false, error = "Account is deactivated" });
-
-            // Get user's primary role
-            var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
-
-            // Get user's companies
-            var userCompanies = await GetUserCompanies(user.Id);
-
-            // Generate JWT Token
-            var token = GenerateJwtToken(user, primaryRole);
-
-            // Generate Refresh Token
-            var refreshToken = GenerateRefreshToken();
-
-            // Update user with refresh token and activity tracking
-            user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7); // Refresh token valid for 7 days
-            user.LastActivityAt = DateTime.UtcNow;
-            user.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new
+            try
             {
-                success = true,
-                token = token,
-                refreshToken = refreshToken,
-                user = new
-                {
-                    id = user.Id,
-                    name = user.Name,
-                    email = user.Email,
-                    role = primaryRole?.Name,
-                    roleId = primaryRole?.Id,
-                    isAdmin = user.IsAdmin,
-                    isEmailVerified = user.IsEmailVerified,
-                    preferences = user.Preferences,
-                    menuPermissions = user.MenuPermissions
-                },
-                companies = userCompanies,
-                message = "Login successful",
-                expiresIn = 3600
-            });
-        }
+                _logger.LogInformation("=== Login Started for {Email} ===", request.Email);
 
+                // ============================================================
+                // 1. AUTHENTICATE
+                // ============================================================
+                var user = await _userService.AuthenticateAsync(request.Email!, request.Password!);
+                if (user == null)
+                {
+                    return Unauthorized(new { success = false, error = "Invalid email or password" });
+                }
+
+                // ============================================================
+                // 2. ACCOUNT CHECKS
+                // ============================================================
+                if (!user.IsEmailVerified)
+                    return Unauthorized(new { success = false, error = "Please verify your email before logging in." });
+
+                if (!user.IsActive)
+                    return Unauthorized(new { success = false, error = "Your account has been deactivated. Please contact your administrator." });
+
+                // ============================================================
+                // 3. DEVICE FINGERPRINT — STILL REQUIRED (for audit)
+                // ============================================================
+                if (string.IsNullOrWhiteSpace(request.DeviceFingerprint))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "We couldn't identify this device. Please refresh the page and try again.",
+                        code = "DEVICE_FINGERPRINT_MISSING"
+                    });
+                }
+
+                // ============================================================
+                // 4. 🔓 ADMIN BYPASS — skip device verification for admins
+                // ============================================================
+                var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
+                var roleName = primaryRole?.Name ?? "User";
+
+                // Admins bypass device approval (still audited below)
+                var isSystemOwner = roleName.Equals("Administrator", StringComparison.OrdinalIgnoreCase);
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var userAgent = Request.Headers["User-Agent"].ToString();
+
+                if (isSystemOwner)
+                {
+                    _logger.LogWarning(
+                        "⚡ Admin login bypass — skipping device verification for {Email} (role: {Role})",
+                        user.Email, roleName);
+                }
+                else
+                {
+                    // Regular user — enforce device verification
+                    var deviceCheck = await _deviceVerificationService.VerifyDeviceAsync(
+                        user.Id,
+                        request.DeviceFingerprint,
+                        ipAddress,
+                        userAgent);
+
+                    if (!deviceCheck.Success)
+                    {
+                        _logger.LogWarning(
+                            "Login blocked for {Email} — device status: {Status}",
+                            user.Email, deviceCheck.Status);
+
+                        var userMessage = deviceCheck.Status switch
+                        {
+                            "NotRegistered" => "This device isn't registered yet. Please register it and wait for administrator approval.",
+                            "Pending" => "Your device is waiting for administrator approval. You'll be able to log in once it's approved.",
+                            "Rejected" => "This device was not approved. Please contact your administrator for assistance.",
+                            "Revoked" => "Access for this device has been removed. Please contact your administrator.",
+                            "Blocked" => "This device has been blocked. Please contact your administrator.",
+                            _ => "This device cannot access your account. Please contact your administrator."
+                        };
+
+                        return StatusCode(StatusCodes.Status403Forbidden, new
+                        {
+                            success = false,
+                            error = userMessage,
+                            code = "DEVICE_NOT_VERIFIED",
+                            deviceStatus = deviceCheck.Status,
+                            requiresApproval = deviceCheck.RequiresApproval,
+                            deviceId = deviceCheck.DeviceId
+                        });
+                    }
+                }
+
+                // ============================================================
+                // 5. ISSUE TOKENS
+                // ============================================================
+                var userCompanies = await GetUserCompanies(user.Id);
+
+                var token = GenerateJwtToken(user, primaryRole);
+                var refreshToken = GenerateRefreshToken();
+
+                user.RefreshToken = refreshToken;
+                user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+                user.LastActivityAt = DateTime.UtcNow;
+                user.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("=== Login Successful for {Email} ===", user.Email);
+
+                return Ok(new
+                {
+                    success = true,
+                    token = token,
+                    refreshToken = refreshToken,
+                    user = new
+                    {
+                        id = user.Id,
+                        name = user.Name,
+                        email = user.Email,
+                        role = primaryRole?.Name,
+                        roleId = primaryRole?.Id,
+                        isAdmin = user.IsAdmin,
+                        isEmailVerified = user.IsEmailVerified,
+                        preferences = user.Preferences,
+                        menuPermissions = user.MenuPermissions
+                    },
+                    companies = userCompanies,
+                    message = "Login successful",
+                    expiresIn = 3600
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during login for {Email}", request.Email);
+                return StatusCode(500, new { success = false, error = "An error occurred during login" });
+            }
+        }
 
         [HttpGet("current")]
         [Authorize]
@@ -3584,6 +3725,15 @@ namespace SkyForge.Controllers
     {
         public required string Email { get; set; }
         public required string Password { get; set; }
+
+        public string? DeviceFingerprint { get; set; }
+        public string? DeviceName { get; set; }
+        public string? OperatingSystem { get; set; }
+        public string? BrowserName { get; set; }
+        public string? BrowserVersion { get; set; }
+        public string? ScreenResolution { get; set; }
+        public string? TimeZone { get; set; }
+        public string? Language { get; set; }
     }
 
     public class VerifyEmailRequest

@@ -50,6 +50,7 @@ using SkyForge.Services.Audit;
 using SkyForge.Services.AuditReportServices;
 using SkyForge.Services.Retailer.CashCounterServices;
 using SkyForge.Services.AttendanceServices;
+using SkyForge.Services.DeviceServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -200,6 +201,7 @@ builder.Services.AddScoped<IStockStatusService, StockStatusService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IFiscalYearTransferService, FiscalYearTransferService>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
+builder.Services.AddScoped<IDeviceVerificationService, DeviceVerificationService>();
 
 
 builder.Services.AddScoped<GoogleDriveService>();

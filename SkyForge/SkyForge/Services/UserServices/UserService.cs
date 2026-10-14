@@ -572,7 +572,7 @@ namespace SkyForge.Services.UserServices
             }
         }
 
-       
+
         public async Task<string> GeneratePasswordResetTokenAsync(string email)
         {
             try
@@ -1158,6 +1158,36 @@ namespace SkyForge.Services.UserServices
             {
                 _logger.LogError(ex, "Error checking if user {UserId} has role {RoleName}", userId, roleName);
                 throw;
+            }
+        }
+
+        public async Task<Guid?> GetUserPrimaryCompanyIdAsync(Guid userId)
+        {
+            try
+            {
+                var user = await _context.Users
+                    .Include(u => u.OwnedCompanies)
+                    .Include(u => u.AccessibleCompanies)
+                    .FirstOrDefaultAsync(u => u.Id == userId);
+
+                if (user == null)
+                {
+                    _logger.LogWarning("User {UserId} not found while resolving primary company", userId);
+                    return null;
+                }
+
+                // Prefer owned company
+                var owned = user.OwnedCompanies?.FirstOrDefault();
+                if (owned != null) return owned.Id;
+
+                // Fall back to first accessible company
+                var accessible = user.AccessibleCompanies?.FirstOrDefault();
+                return accessible?.Id;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting primary company for user {UserId}", userId);
+                return null;
             }
         }
     }

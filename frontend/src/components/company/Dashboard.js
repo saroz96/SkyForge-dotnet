@@ -251,9 +251,9 @@ const Dashboard = () => {
                   Welcome, {userInfo?.name}
                 </h3>
                 <div className="d-flex align-items-center gap-2">
-                  <h2 className="card-title mb-0" style={{ fontSize: '1.1rem', fontWeight: '500' }}>
+                  {/* <h2 className="card-title mb-0" style={{ fontSize: '1.1rem', fontWeight: '500' }}>
                     Your Companies
-                  </h2>
+                  </h2> */}
                   <button 
                     className="btn btn-sm btn-outline-secondary"
                     onClick={handleRefresh}

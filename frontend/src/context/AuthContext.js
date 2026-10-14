@@ -162,78 +162,133 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (credentials) => {
+  // const login = async (credentials) => {
+  //   try {
+  //     setLoading(true);
+  //     setError(null);
+
+  //     const { data } = await api.post('/api/User/login', credentials);
+
+  //     console.log('Login response:', data);
+
+  //     if (!data.success || !data.token) {
+  //       throw new Error(data.error || 'Login failed');
+  //     }
+
+  //     // Store both tokens
+  //     localStorage.setItem('token', data.token);
+  //     if (data.refreshToken) {
+  //       localStorage.setItem('refreshToken', data.refreshToken);
+  //     }
+
+  //     // Store user data
+  //     if (data.user) {
+  //       localStorage.setItem('user', JSON.stringify(data.user));
+  //     }
+
+  //     // Store companies if available
+  //     if (data.companies) {
+  //       localStorage.setItem('companies', JSON.stringify(data.companies));
+  //     }
+
+  //     // Set Authorization header for future requests
+  //     api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+
+  //     // Dispatch user data AND companies to Redux
+  //     dispatch(setCredentials({
+  //       user: data.user,
+  //       currentCompany: null,
+  //       userCompanies: data.companies || []
+  //     }));
+
+  //     // Reset activity timer on successful login
+  //     if (window.resetActivityTimer) {
+  //       window.resetActivityTimer();
+  //     }
+
+  //     return {
+  //       success: true,
+  //       token: data.token,
+  //       refreshToken: data.refreshToken,
+  //       user: data.user,
+  //       companies: data.companies || [],
+  //       message: data.message || 'Login successful',
+  //       redirectTo: '/user-dashboard'
+  //     };
+
+  //   } catch (err) {
+  //     console.error('Login error:', err);
+
+  //     let errorMessage = err.response?.data?.error ||
+  //       err.response?.data?.message ||
+  //       err.message ||
+  //       'Login failed';
+
+  //     if (err.response?.status === 401) {
+  //       errorMessage = err.response?.data?.error || 'Invalid email or password';
+  //     }
+
+  //     setError(errorMessage);
+  //     throw errorMessage;
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  const login = async (authData) => {
     try {
-      setLoading(true);
-      setError(null);
+        setLoading(true);
+        setError(null);
 
-      const { data } = await api.post('/api/User/login', credentials);
+        // authData = { user, token, refreshToken, companies }
+        if (!authData?.token || !authData?.user) {
+            throw new Error('Login data is incomplete');
+        }
 
-      console.log('Login response:', data);
+        // Store tokens
+        localStorage.setItem('token', authData.token);
+        if (authData.refreshToken) {
+            localStorage.setItem('refreshToken', authData.refreshToken);
+        }
 
-      if (!data.success || !data.token) {
-        throw new Error(data.error || 'Login failed');
-      }
+        // Store user
+        localStorage.setItem('user', JSON.stringify(authData.user));
 
-      // Store both tokens
-      localStorage.setItem('token', data.token);
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
+        // Store companies
+        const companies = authData.companies || [];
+        localStorage.setItem('companies', JSON.stringify(companies));
 
-      // Store user data
-      if (data.user) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-      }
+        // Set axios header
+        api.defaults.headers.common['Authorization'] = `Bearer ${authData.token}`;
 
-      // Store companies if available
-      if (data.companies) {
-        localStorage.setItem('companies', JSON.stringify(data.companies));
-      }
+        // Dispatch to Redux
+        dispatch(setCredentials({
+            user: authData.user,
+            currentCompany: null,
+            userCompanies: companies,
+        }));
 
-      // Set Authorization header for future requests
-      api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+        // Reset activity timer
+        if (window.resetActivityTimer) {
+            window.resetActivityTimer();
+        }
 
-      // Dispatch user data AND companies to Redux
-      dispatch(setCredentials({
-        user: data.user,
-        currentCompany: null,
-        userCompanies: data.companies || []
-      }));
-
-      // Reset activity timer on successful login
-      if (window.resetActivityTimer) {
-        window.resetActivityTimer();
-      }
-
-      return {
-        success: true,
-        token: data.token,
-        refreshToken: data.refreshToken,
-        user: data.user,
-        companies: data.companies || [],
-        message: data.message || 'Login successful',
-        redirectTo: '/user-dashboard'
-      };
-
+        return {
+            success: true,
+            token: authData.token,
+            refreshToken: authData.refreshToken,
+            user: authData.user,
+            companies,
+        };
     } catch (err) {
-      console.error('Login error:', err);
-
-      let errorMessage = err.response?.data?.error ||
-        err.response?.data?.message ||
-        err.message ||
-        'Login failed';
-
-      if (err.response?.status === 401) {
-        errorMessage = err.response?.data?.error || 'Invalid email or password';
-      }
-
-      setError(errorMessage);
-      throw errorMessage;
+        console.error('Auth context login failed:', err);
+        const msg = err?.message || 'Login failed';
+        setError(msg);
+        throw msg;
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
 
   const logout = useCallback(async () => {
     try {
@@ -269,39 +324,6 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, [clearAuthData]);
-
-  // const switchCompany = async (companyId) => {
-  //   try {
-  //     setLoading(true);
-  //     setError(null);
-
-  //     const { data } = await api.get(`/api/switch/${companyId}`);
-
-  //     if (!data.success) {
-  //       throw new Error(data.message || 'Failed to switch company');
-  //     }
-
-  //     dispatch(setCurrentCompany({
-  //       company: data.data?.sessionData?.company || data.company,
-  //       fiscalYear: data.data?.sessionData?.fiscalYear
-  //     }));
-
-  //     // Reset activity timer on company switch
-  //     if (window.resetActivityTimer) {
-  //       window.resetActivityTimer();
-  //     }
-
-  //     return data;
-  //   } catch (err) {
-  //     const error = err.response?.data?.message || err.message || 'Failed to switch company';
-  //     setError(error);
-  //     throw error;
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-  // Function to refresh token manually
 
 
   const switchCompany = async (companyId) => {
