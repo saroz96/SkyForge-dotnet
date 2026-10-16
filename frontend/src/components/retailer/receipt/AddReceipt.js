@@ -209,46 +209,6 @@ const AddReceipt = () => {
         }
     };
 
-    // Fetch accounts from backend
-    // const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
-    //     try {
-    //         setIsAccountSearching(true);
-
-    //         const response = await api.get('/api/retailer/all/accounts/search/except-cash/bank', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: searchTerm.trim() ? 15 : 25,
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             if (page === 1) {
-    //                 setAccounts(response.data.accounts);
-    //             } else {
-    //                 setAccounts(prev => [...prev, ...response.data.accounts]);
-    //             }
-    //             setHasMoreAccountResults(response.data.pagination.hasNextPage);
-    //             setTotalAccounts(response.data.pagination.totalAccounts);
-    //             setAccountSearchPage(page);
-
-    //             if (searchTerm.trim() !== '') {
-    //                 setAccountLastSearchQuery(searchTerm);
-    //                 setAccountShouldShowLastSearchResults(true);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching accounts:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error loading accounts',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsAccountSearching(false);
-    //     }
-    // };
-
     // Replace the existing fetchAccountsFromBackend with this version
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1, append = false) => {
         try {
@@ -501,19 +461,6 @@ const AddReceipt = () => {
         };
     }, [showAccountModal]);
 
-    // useEffect(() => {
-    //     if (showAccountModal) {
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-
-    //         if (accountShouldShowLastSearchResults && accountLastSearchQuery.trim() !== '') {
-    //             fetchAccountsFromBackend(accountLastSearchQuery, 1);
-    //         } else {
-    //             fetchAccountsFromBackend('', 1);
-    //         }
-    //     }
-    // }, [showAccountModal]);
-
     useEffect(() => {
         if (showAccountModal) {
             setAccountSearchQuery('');
@@ -735,23 +682,6 @@ const AddReceipt = () => {
         }
     };
 
-    // const handleAccountSearch = (e) => {
-    //     const searchText = e.target.value;
-    //     setAccountSearchQuery(searchText);
-    //     setAccountSearchPage(1);
-
-    //     if (searchText.trim() !== '' && accountShouldShowLastSearchResults) {
-    //         setAccountShouldShowLastSearchResults(false);
-    //         setAccountLastSearchQuery('');
-    //     }
-
-    //     const timer = setTimeout(() => {
-    //         fetchAccountsFromBackend(searchText, 1);
-    //     }, 300);
-
-    //     return () => clearTimeout(timer);
-    // };
-
     const handleAccountSearch = (e) => {
         const searchText = e.target.value;
         setAccountSearchQuery(searchText);
@@ -814,12 +744,6 @@ const AddReceipt = () => {
             }
         }
     };
-
-    // const loadMoreAccounts = () => {
-    //     if (!isAccountSearching) {
-    //         fetchAccountsFromBackend(accountSearchQuery, accountSearchPage + 1);
-    //     }
-    // };
 
     // Replace the existing loadMoreAccounts with this version
     const loadMoreAccounts = () => {

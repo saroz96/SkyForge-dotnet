@@ -22,7 +22,7 @@ namespace SkyForge.Services.DeviceServices
             _context = context;
             _logger = logger;
             _configuration = configuration;
-            _maxDevicesPerUser = int.TryParse(configuration["DeviceVerification:MaxDevicesPerUser"], out var max) ? max : 3;
+            _maxDevicesPerUser = int.TryParse(configuration["DeviceVerification:MaxDevicesPerUser"], out var max) ? max : 7;
         }
 
         // ==================== CLIENT SIDE ====================

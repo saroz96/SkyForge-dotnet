@@ -122,25 +122,6 @@ const DayWiseAgeing = () => {
         return null;
     };
 
-    // Fetch accounts
-    // const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
-    //     try {
-    //         setIsAccountSearching(true);
-    //         const response = await api.get('/api/retailer/accounts/search', {
-    //             params: { search: searchTerm, page: page, limit: searchTerm.trim() ? 15 : 25 }
-    //         });
-    //         if (response.data.success) {
-    //             if (page === 1) { setAccounts(response.data.accounts); } else { setAccounts(prev => [...prev, ...response.data.accounts]); }
-    //             setHasMoreAccountResults(response.data.pagination.hasNextPage);
-    //             setTotalAccounts(response.data.pagination.totalAccounts);
-    //             setAccountSearchPage(page);
-    //             if (searchTerm.trim() !== '') { setAccountLastSearchQuery(searchTerm); setAccountShouldShowLastSearchResults(true); }
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching accounts:', error); setNotification({ show: true, message: 'Error loading accounts', type: 'error' });
-    //     } finally { setIsAccountSearching(false); }
-    // };
-
     // Replace or update this function
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1, append = false) => {
         try {
@@ -426,7 +407,7 @@ const DayWiseAgeing = () => {
         try {
             const excelData = [];
             excelData.push(['Company Name:', data.currentCompanyName || 'N/A']);
-            excelData.push(['Report Type:', 'Day Wise Ageing Report']);
+            excelData.push(['Report Type:', 'Day Ageing Report']);
             excelData.push(['Account:', selectedAccount?.name || data.account?.name || 'N/A']);
             excelData.push(['From Date (BS):', dateRange.fromDate]);
             excelData.push(['To Date (BS):', dateRange.toDate]);
@@ -472,7 +453,7 @@ const DayWiseAgeing = () => {
         const openingBalanceType = data.agingData?.openingBalanceType || (openingBalanceBefore >= 0 ? 'Dr' : 'Cr');
 
         const printContent = `
-        <!DOCTYPE html><html><head><title>Day Wise Ageing Report</title>
+        <!DOCTYPE html><html><head><title>Day Ageing Report</title>
         <style>
             @page { margin: 3mm; } body { font-family: Arial, sans-serif; font-size: 7px; margin: 0; padding: 2mm; }
             table { width: 100%; border-collapse: collapse; page-break-inside: auto; font-size: 6px; }
@@ -486,7 +467,7 @@ const DayWiseAgeing = () => {
         </style></head>
         <body>
             <div class="print-header"><h1>${data.currentCompanyName || 'Company Name'}</h1><p>${data.company?.address || ''}${data.company?.city ? ', ' + data.company.city : ''}, PAN: ${data.company?.pan || ''}</p><hr></div>
-            <div class="report-title">Day Wise Ageing Report</div>
+            <div class="report-title">Day Ageing Report</div>
             <div class="info-row">
                 <div><strong>Account:</strong> ${selectedAccount?.name || data.account?.name || 'N/A'}</div>
                 <div><strong>From:</strong> ${dateRange.fromDate}</div>
