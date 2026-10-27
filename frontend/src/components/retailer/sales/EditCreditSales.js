@@ -336,25 +336,6 @@ const EditCreditSales = () => {
     const accountModalRef = useRef(null);
     const transactionModalRef = useRef(null);
 
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL,
-    //     withCredentials: true,
-    // });
-
-    // // Add authorization header to all requests
-    // api.interceptors.request.use(
-    //     (config) => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     (error) => {
-    //         return Promise.reject(error);
-    //     }
-    // );
-
     useEffect(() => {
         fetchRoundOffSetting();
     }, []);
@@ -1002,110 +983,6 @@ const EditCreditSales = () => {
     }, [items, formData.discountPercentage, formData.discountAmount, formData.roundOffAmount, formData.isVatExempt, formData.vatPercentage]);
 
 
-    // const calculateTotal = (itemsToCalculate = items) => {
-    //     let subTotal = 0;
-    //     let taxableAmount = 0;
-    //     let nonTaxableAmount = 0;
-
-    //     itemsToCalculate.forEach(item => {
-    //         const itemAmount = parseFloat(item.amount) || 0;
-    //         subTotal += itemAmount;
-
-    //         if (item.vatStatus === '13') {
-    //             taxableAmount += itemAmount;
-    //         } else {
-    //             nonTaxableAmount += itemAmount;
-    //         }
-    //     });
-
-    //     // Use current formData values for discount
-    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
-    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
-
-    //     let effectiveDiscount = 0;
-    //     let discountForTaxable = 0;
-    //     let discountForNonTaxable = 0;
-
-    //     if (discountAmount > 0) {
-    //         effectiveDiscount = discountAmount;
-    //         if (subTotal > 0) {
-    //             const taxableRatio = taxableAmount / subTotal;
-    //             const nonTaxableRatio = nonTaxableAmount / subTotal;
-    //             discountForTaxable = effectiveDiscount * taxableRatio;
-    //             discountForNonTaxable = effectiveDiscount * nonTaxableRatio;
-    //         }
-    //     } else if (discountPercentage > 0) {
-    //         discountForTaxable = (taxableAmount * discountPercentage) / 100;
-    //         discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
-    //         effectiveDiscount = discountForTaxable + discountForNonTaxable;
-    //     }
-
-    //     const finalTaxableAmount = taxableAmount - discountForTaxable;
-    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
-
-    //     let vatAmount = 0;
-    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-    //         vatAmount = (finalTaxableAmount * parseFloat(formData.vatPercentage)) / 100;
-    //     }
-
-    //     // Calculate total before round off
-    //     let totalBeforeRoundOff = finalTaxableAmount + finalNonTaxableAmount + vatAmount;
-
-    //     // Calculate auto round-off amount
-    //     let roundOffAmount = 0;
-    //     let autoRoundOffAmount = 0;
-
-    //     // Calculate auto round-off if enabled
-    //     if (roundOffSales) {
-    //         const roundedTotal = Math.round(totalBeforeRoundOff);
-    //         autoRoundOffAmount = roundedTotal - totalBeforeRoundOff;
-    //         autoRoundOffAmount = Math.round(autoRoundOffAmount * 100) / 100;
-    //     }
-
-    //     // Use auto or manual round-off
-    //     if (roundOffSales && !manualRoundOffOverride) {
-    //         roundOffAmount = autoRoundOffAmount;
-    //     } else {
-    //         roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-    //     }
-
-    //     const totalAmount = totalBeforeRoundOff + roundOffAmount;
-
-    //     // Update formData with calculated values
-    //     setFormData(prev => ({
-    //         ...prev,
-    //         subTotal: Math.round(subTotal * 100) / 100,
-    //         taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
-    //         nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
-    //         vatAmount: Math.round(vatAmount * 100) / 100,
-    //         totalAmount: Math.round(totalAmount * 100) / 100,
-    //         discountAmount: Math.round(effectiveDiscount * 100) / 100,
-    //         roundOffAmount: Math.round(roundOffAmount * 100) / 100,
-    //         autoRoundOffAmount: Math.round(autoRoundOffAmount * 100) / 100
-    //     }));
-
-    //     // Return values for immediate use
-    //     return {
-    //         subTotal: Math.round(subTotal * 100) / 100,
-    //         taxableAmount: Math.round(finalTaxableAmount * 100) / 100,
-    //         nonTaxableAmount: Math.round(finalNonTaxableAmount * 100) / 100,
-    //         vatAmount: Math.round(vatAmount * 100) / 100,
-    //         totalAmount: Math.round(totalAmount * 100) / 100,
-    //         discountAmount: Math.round(effectiveDiscount * 100) / 100,
-    //         roundOffAmount: Math.round(roundOffAmount * 100) / 100,
-    //         autoRoundOffAmount: Math.round(autoRoundOffAmount * 100) / 100
-    //     };
-    // };
-
-    // Add these precision utility functions at the top of your EditCreditSales component, 
-    // right after the other utility functions (around line 150-200):
-
-    // Precision utility functions
-
-    // REPLACE the calculateTotal function with this version using precise utilities
-
-
-
     const preciseAdd = (a, b) => {
         return parseFloat((parseFloat(a) + parseFloat(b)).toFixed(10));
     };
@@ -1250,34 +1127,6 @@ const EditCreditSales = () => {
         });
     };
 
-    // Recalculate discount amount when items change (subtotal changes)
-    // useEffect(() => {
-    //     // Calculate subtotal from current items directly
-    //     let currentSubTotal = 0;
-    //     items.forEach(item => {
-    //         currentSubTotal += parseFloat(item.amount) || 0;
-    //     });
-
-    //     // Only auto-recalculate if discount percentage is set (not zero)
-    //     if (formData.discountPercentage > 0 && formData.discountPercentage <= 100) {
-    //         const discountAmount = (currentSubTotal * formData.discountPercentage) / 100;
-
-    //         setFormData(prev => ({
-    //             ...prev,
-    //             discountAmount: Math.round(discountAmount * 100) / 100
-    //         }));
-    //     }
-    //     // If discount amount is set (not zero), recalculate percentage
-    //     else if (formData.discountAmount > 0) {
-    //         const discountPercentage = currentSubTotal > 0 ? (formData.discountAmount / currentSubTotal) * 100 : 0;
-
-    //         setFormData(prev => ({
-    //             ...prev,
-    //             discountPercentage: Math.min(Math.max(discountPercentage, 0), 100).toFixed(2)
-    //         }));
-    //     }
-    // }, [items, formData.discountPercentage, formData.discountAmount]); // Add dependencies
-
     useEffect(() => {
         if (roundOffSales && !manualRoundOffOverride) {
             // Calculate the auto round-off value
@@ -1414,26 +1263,6 @@ const EditCreditSales = () => {
         }
     };
 
-    // const selectItemForInsert = async (item) => {
-    //     if (headerSearchQuery.trim() !== '') {
-    //         setHeaderLastSearchQuery(headerSearchQuery);
-    //         setHeaderShouldShowLastSearchResults(true);
-    //     } else if (headerShouldShowLastSearchResults && headerLastSearchQuery) {
-    //         setHeaderShouldShowLastSearchResults(true);
-    //     }
-    //     setHeaderSearchQuery('');
-
-    //     setShowHeaderItemModal(false);
-    //     setSelectedItemForInsert(item);
-
-    //     setSelectedItemBatchNumber('');
-    //     setSelectedItemExpiryDate('');
-    //     setSelectedItemRate(item.latestPrice || 0);
-
-    //     setTimeout(() => {
-    //         showBatchModalForItem(item);
-    //     }, 100);
-    // };
 
     const selectItemForInsert = async (item) => {
         if (headerSearchQuery.trim() !== '') {
@@ -1873,46 +1702,6 @@ const EditCreditSales = () => {
         }, 0);
     };
 
-    // const updateItemField = (index, field, value) => {
-    //     const updatedItems = [...items];
-    //     updatedItems[index][field] = value;
-
-    //     if (field === 'quantity' || field === 'price') {
-    //         if (field === 'quantity') {
-    //             const item = updatedItems[index];
-    //             const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
-
-    //             if (stockValidation.batchStockMap.has(batchKey)) {
-    //                 const isValid = validateQuantity(index, value, updatedItems);
-    //                 const remainingStock = getRemainingStock(item, updatedItems);
-    //                 const availableStock = getAvailableStockForDisplay(item);
-
-    //                 if (!isValid) {
-    //                     setQuantityErrors(prev => ({
-    //                         ...prev,
-    //                         [index]: `Stock: ${availableStock} | Rem.: ${remainingStock}`
-    //                     }));
-    //                 } else {
-    //                     setQuantityErrors(prev => {
-    //                         const newErrors = { ...prev };
-    //                         delete newErrors[index];
-    //                         return newErrors;
-    //                     });
-    //                 }
-    //             }
-    //         }
-
-    //         updatedItems[index].amount = (updatedItems[index].quantity * updatedItems[index].price).toFixed(2);
-    //     }
-
-    //     setItems(updatedItems);
-
-    //     // Recalculate totals
-    //     setTimeout(() => {
-    //         calculateTotal();
-    //     }, 0);
-    // };
-
     const updateItemField = (index, field, value) => {
         const updatedItems = [...items];
 
@@ -1978,47 +1767,6 @@ const EditCreditSales = () => {
             return () => clearTimeout(timer);
         }
     }, [showTransactionModal]);
-
-
-
-    // const handleDiscountPercentageChange = (e) => {
-    //     const value = parseFloat(e.target.value) || 0;
-    //     const validatedValue = Math.min(Math.max(value, 0), 100);
-
-    //     // Calculate subtotal from current items directly
-    //     let currentSubTotal = 0;
-    //     items.forEach(item => {
-    //         currentSubTotal += parseFloat(item.amount) || 0;
-    //     });
-
-    //     const discountAmount = (currentSubTotal * validatedValue) / 100;
-
-    //     setFormData(prev => ({
-    //         ...prev,
-    //         discountPercentage: validatedValue,
-    //         discountAmount: discountAmount.toFixed(2)
-    //     }));
-    // };
-
-    // const handleDiscountAmountChange = (e) => {
-    //     const value = parseFloat(e.target.value) || 0;
-
-    //     // Calculate subtotal from current items directly
-    //     let currentSubTotal = 0;
-    //     items.forEach(item => {
-    //         currentSubTotal += parseFloat(item.amount) || 0;
-    //     });
-
-    //     const validatedValue = Math.min(Math.max(value, 0), currentSubTotal);
-    //     const discountPercentage = currentSubTotal > 0 ? (validatedValue / currentSubTotal) * 100 : 0;
-
-    //     setFormData(prev => ({
-    //         ...prev,
-    //         discountAmount: validatedValue,
-    //         discountPercentage: discountPercentage.toFixed(2)
-    //     }));
-    // };
-
 
     const fetchLastTransactions = async (itemId, index = null) => {
         if (!formData.accountId) {
@@ -2742,7 +2490,7 @@ const EditCreditSales = () => {
                                     {/* Nepali Transaction Date */}
                                     <div className="col-12 col-md-6 col-lg-3">
                                         <div className="position-relative">
-                                            <input
+                                            {/* <input
                                                 type="text"
                                                 name="transactionDateNepali"
                                                 id="transactionDateNepali"
@@ -2862,6 +2610,132 @@ const EditCreditSales = () => {
                                                     paddingTop: '0.75rem',
                                                     width: '100%'
                                                 }}
+                                            /> */}
+                                            <input
+                                                type="text"
+                                                name="transactionDateNepali"
+                                                id="transactionDateNepali"
+                                                ref={transactionDateRef}
+                                                autoComplete='off'
+                                                className={`form-control form-control-sm no-date-icon ${dateErrors.transactionDateNepali ? 'is-invalid' : ''}`}
+                                                value={formData.transactionDateNepali}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
+                                                    if (sanitizedValue.length <= 10) {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateNepali: sanitizedValue
+                                                        }));
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                        // Auto-convert to AD when we have a complete valid date (10 characters)
+                                                        if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                            const adDate = convertBsToAd(sanitizedValue);
+                                                            if (adDate) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    transactionDateRoman: adDate,
+                                                                    billDate: adDate,             // sync AD invoice date
+                                                                    nepaliDate: sanitizedValue    // sync BS invoice date
+                                                                }));
+                                                            }
+                                                        }
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    const allowedKeys = [
+                                                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                                        'Home', 'End'
+                                                    ];
+
+                                                    if (!allowedKeys.includes(e.key) &&
+                                                        !/^\d$/.test(e.key) &&
+                                                        e.key !== '/' &&
+                                                        e.key !== '-' &&
+                                                        !e.ctrlKey && !e.metaKey) {
+                                                        e.preventDefault();
+                                                    }
+
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const dateStr = e.target.value.trim();
+
+                                                        if (!dateStr) {
+                                                            const currentDate = getCurrentNepaliDate();
+                                                            const adDate = convertBsToAd(currentDate);
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                transactionDateNepali: currentDate,
+                                                                transactionDateRoman: adDate || prev.transactionDateRoman,
+                                                                billDate: adDate || prev.billDate,
+                                                                nepaliDate: currentDate      // sync BS invoice date
+                                                            }));
+                                                            setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                            setNotification({
+                                                                show: true,
+                                                                message: 'Date required. Auto-corrected to current date.',
+                                                                type: 'warning',
+                                                                duration: 3000
+                                                            });
+
+                                                            handleKeyDown(e, 'transactionDateNepali');
+                                                        } else if (dateErrors.transactionDateNepali) {
+                                                            e.target.focus();
+                                                        } else {
+                                                            handleKeyDown(e, 'transactionDateNepali');
+                                                        }
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
+                                                    const dateStr = e.target.value.trim();
+                                                    if (!dateStr) {
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                        return;
+                                                    }
+
+                                                    if (isValidNepaliDate(dateStr)) {
+                                                        const adDate = convertBsToAd(dateStr);
+                                                        if (adDate) {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                transactionDateNepali: dateStr,
+                                                                transactionDateRoman: adDate,
+                                                                billDate: adDate,           // sync AD invoice date
+                                                                nepaliDate: dateStr         // sync BS invoice date
+                                                            }));
+                                                        }
+                                                        setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                    } else {
+                                                        // Auto-correct to current date
+                                                        const currentDate = getCurrentNepaliDate();
+                                                        const adDate = convertBsToAd(currentDate);
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            transactionDateNepali: currentDate,
+                                                            transactionDateRoman: adDate || prev.transactionDateRoman,
+                                                            billDate: adDate || prev.billDate,
+                                                            nepaliDate: currentDate     // sync BS invoice date
+                                                        }));
+                                                        setNotification({
+                                                            show: true,
+                                                            message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                            type: 'warning',
+                                                            duration: 3000
+                                                        });
+                                                    }
+                                                }}
+                                                placeholder="YYYY-MM-DD"
+                                                required
+                                                style={{
+                                                    height: '26px',
+                                                    fontSize: '0.875rem',
+                                                    paddingTop: '0.75rem',
+                                                    width: '100%'
+                                                }}
                                             />
                                             <label className="position-absolute" style={{
                                                 top: '-0.5rem',
@@ -2881,39 +2755,6 @@ const EditCreditSales = () => {
                                             )}
                                         </div>
                                     </div>
-
-                                    {/* AD Transaction Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="transactionDateRoman"
-                                                id="transactionDateRoman"
-                                                className="form-control form-control-sm"
-                                                value={formData.transactionDateRoman || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Transaction Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
 
                                     <input
                                         type="hidden"
@@ -3059,39 +2900,6 @@ const EditCreditSales = () => {
                                             )}
                                         </div>
                                     </div>
-
-                                    {/* AD Invoice Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="billDate"
-                                                id="billDate"
-                                                className="form-control form-control-sm"
-                                                value={formData.billDate || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Invoice Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
 
                                     <input
                                         type="hidden"
@@ -3386,79 +3194,6 @@ const EditCreditSales = () => {
                                     </div>
                                 </div>
                             </div>
-
-                            {/* <div className="col-12 col-md-2">
-                                <div className="position-relative">
-                                    <input
-                                        type="text"
-                                        id="address"
-                                        className="form-control form-control-sm"
-                                        value={formData.accountAddress}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleKeyDown(e, 'address');
-                                            }
-                                        }}
-                                        style={{
-                                            height: '26px',
-                                            fontSize: '0.875rem',
-                                            paddingTop: '0.75rem',
-                                            width: '100%'
-                                        }}
-                                    />
-                                    <label
-                                        className="position-absolute"
-                                        style={{
-                                            top: '-0.5rem',
-                                            left: '0.75rem',
-                                            fontSize: '0.75rem',
-                                            backgroundColor: 'white',
-                                            padding: '0 0.25rem',
-                                            color: '#6c757d',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        Address:
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="col-12 col-md-2">
-                                <div className="position-relative">
-                                    <input
-                                        type="text"
-                                        id="pan"
-                                        name="pan"
-                                        className="form-control form-control-sm"
-                                        value={formData.accountPan}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleKeyDown(e, 'pan');
-                                            }
-                                        }}
-                                        style={{
-                                            height: '26px',
-                                            fontSize: '0.875rem',
-                                            paddingTop: '0.75rem',
-                                            width: '100%'
-                                        }}
-                                    />
-                                    <label
-                                        className="position-absolute"
-                                        style={{
-                                            top: '-0.5rem',
-                                            left: '0.75rem',
-                                            fontSize: '0.75rem',
-                                            backgroundColor: 'white',
-                                            padding: '0 0.25rem',
-                                            color: '#6c757d',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        Vat No:
-                                    </label>
-                                </div>
-                            </div> */}
 
                             {/* Party Address Field */}
                             <div className="col-12 col-md">
@@ -4413,269 +4148,6 @@ const EditCreditSales = () => {
                     </form>
                 </div>
             </div>
-
-
-            {/* {showAccountModal && (
-                <div
-                    className="modal fade show"
-                    id="accountModal"
-                    tabIndex="-1"
-                    style={{ display: 'block' }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            handleAccountModalClose();
-                            setTimeout(() => {
-                                document.getElementById('address').focus();
-                            }, 0);
-                        }
-                    }}
-                >
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content" style={{ height: '400px' }}>
-                            <div className="modal-header py-1">
-                                <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
-                                    {formData.paymentMode === 'cash' ? 'Select Cash Account' : 'Select Account'}
-                                </h5>
-                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
-                                    {formData.paymentMode === 'cash'
-                                        ? (totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Type to search or enter new account')
-                                        : (totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...')
-                                    }
-                                </small>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={handleAccountModalClose}
-                                    aria-label="Close"
-                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
-                                ></button>
-                            </div>
-                            <div className="p-2 bg-white sticky-top">
-                                {formData.paymentMode === 'cash' ? (
-                                    // Cash mode - allow typing new account
-                                    <input
-                                        type="text"
-                                        id="searchAccount"
-                                        className="form-control form-control-sm"
-                                        placeholder="Type to search or enter new account name..."
-                                        autoFocus
-                                        autoComplete='off'
-                                        value={formData.accountName}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                accountName: value,
-                                                accountId: '',
-                                                accountAddress: '',
-                                                accountPan: '',
-                                                accountEmail: '',
-                                                accountPhone: ''
-                                            }));
-                                            setIsManualAccountEntry(true);
-
-                                            setAccountSearchQuery(value);
-                                            setAccountSearchPage(1);
-
-                                            if (value.trim() !== '' && accountShouldShowLastSearchResults) {
-                                                setAccountShouldShowLastSearchResults(false);
-                                                setAccountLastSearchQuery('');
-                                            }
-
-                                            const timer = setTimeout(() => {
-                                                fetchAccountsFromBackend(value, 1);
-                                            }, 300);
-
-                                            return () => clearTimeout(timer);
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item');
-                                                if (firstAccountItem) {
-                                                    firstAccountItem.focus();
-                                                }
-                                            } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                // Use the entered name as account
-                                                const enteredName = document.getElementById('searchAccount').value.trim();
-                                                if (enteredName) {
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        accountName: enteredName,
-                                                        accountId: '',
-                                                        accountAddress: '',
-                                                        accountPan: '',
-                                                        accountEmail: '',
-                                                        accountPhone: ''
-                                                    }));
-                                                    setIsManualAccountEntry(true);
-                                                    setShowAccountModal(false);
-                                                    setTimeout(() => {
-                                                        document.getElementById('address').focus();
-                                                    }, 100);
-                                                }
-                                            } else if (e.key === 'F6') {
-                                                e.preventDefault();
-                                                setShowAccountCreationModal(true);
-                                                handleAccountModalClose();
-                                            }
-                                        }}
-                                        ref={accountSearchRef}
-                                        style={{
-                                            height: '24px',
-                                            fontSize: '0.75rem',
-                                            padding: '0.25rem 0.5rem'
-                                        }}
-                                    />
-                                ) : (
-                                    // Credit mode - keep existing behavior (search only)
-                                    <input
-                                        type="text"
-                                        id="searchAccount"
-                                        className="form-control form-control-sm"
-                                        placeholder="Search Account... (Press F6 to create new account)"
-                                        autoFocus
-                                        autoComplete='off'
-                                        value={accountSearchQuery}
-                                        onChange={handleAccountSearch}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item');
-                                                if (firstAccountItem) {
-                                                    firstAccountItem.focus();
-                                                }
-                                            } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item.active');
-                                                if (firstAccountItem) {
-                                                    const accountId = firstAccountItem.getAttribute('data-account-id');
-                                                    const account = accounts.find(a => a.id === accountId);
-                                                    if (account) {
-                                                        selectAccount(account);
-                                                        document.getElementById('address').focus();
-                                                    }
-                                                }
-                                            } else if (e.key === 'F6') {
-                                                e.preventDefault();
-                                                setShowAccountCreationModal(true);
-                                                handleAccountModalClose();
-                                            }
-                                        }}
-                                        ref={accountSearchRef}
-                                        style={{
-                                            height: '24px',
-                                            fontSize: '0.75rem',
-                                            padding: '0.25rem 0.5rem'
-                                        }}
-                                    />
-                                )}
-                            </div>
-                            <div className="modal-body p-0">
-                                <div style={{ height: 'calc(320px - 40px)' }}>
-                                    {formData.paymentMode === 'cash' && formData.accountName.trim() !== '' && accounts.length === 0 && isManualAccountEntry ? (
-                                        <div className="text-center py-4">
-                                            <i className="bi bi-person-plus text-primary mb-2" style={{ fontSize: '1.5rem' }}></i>
-                                            <p className="text-muted mb-2" style={{ fontSize: '0.8rem' }}>
-                                                No accounts found for "<strong>{formData.accountName}</strong>"
-                                            </p>
-                                            <p className="text-muted mb-3" style={{ fontSize: '0.7rem' }}>
-                                                Press Enter to use as new account, or F6 to create full account
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <VirtualizedAccountList
-                                            accounts={accounts}
-                                            onAccountClick={(account) => {
-                                                setFormData({
-                                                    ...formData,
-                                                    accountId: account.id,
-                                                    accountName: `${account.uniqueNumber || ''} ${account.name}`.trim(),
-                                                    accountAddress: account.address || '',
-                                                    accountPan: account.pan || '',
-                                                    accountEmail: account.email || '',
-                                                    accountPhone: account.phone || ''
-                                                });
-                                                setIsManualAccountEntry(false);
-                                                setShowAccountModal(false);
-                                                setTimeout(() => {
-                                                    document.getElementById('address').focus();
-                                                }, 100);
-                                            }}
-                                            searchRef={accountSearchRef}
-                                            hasMore={hasMoreAccountResults}
-                                            isSearching={isAccountSearching}
-                                            onLoadMore={loadMoreAccounts}
-                                            totalAccounts={totalAccounts}
-                                            page={accountSearchPage}
-                                            searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                            {formData.paymentMode === 'cash' && (
-                                <div className="modal-footer py-1" style={{
-                                    borderTop: '1px solid #dee2e6',
-                                    backgroundColor: '#f8f9fa'
-                                }}>
-                                    <div className="d-flex justify-content-between w-100 align-items-center">
-                                        <div>
-                                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                                                {formData.accountName.trim() !== '' && accounts.length === 0 && isManualAccountEntry
-                                                    ? 'Type account name and press Enter to use'
-                                                    : 'Select account or continue typing'}
-                                            </small>
-                                        </div>
-                                        <div className="d-flex gap-2">
-                                            <button
-                                                type="button"
-                                                className="btn btn-sm btn-primary py-0 px-2"
-                                                onClick={() => {
-                                                    const enteredName = document.getElementById('searchAccount').value.trim();
-                                                    if (enteredName) {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            accountName: enteredName,
-                                                            accountId: '',
-                                                            accountAddress: '',
-                                                            accountPan: '',
-                                                            accountEmail: '',
-                                                            accountPhone: ''
-                                                        }));
-                                                        setIsManualAccountEntry(true);
-                                                        setShowAccountModal(false);
-                                                        setTimeout(() => {
-                                                            document.getElementById('address').focus();
-                                                        }, 100);
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '24px',
-                                                    fontSize: '0.75rem'
-                                                }}
-                                            >
-                                                Use Entered Name
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                onClick={handleAccountModalClose}
-                                                style={{
-                                                    height: '24px',
-                                                    fontSize: '0.75rem'
-                                                }}
-                                            >
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )} */}
 
             {showAccountModal && (
                 <AccountModalForSales

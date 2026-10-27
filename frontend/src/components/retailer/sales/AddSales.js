@@ -3447,27 +3447,53 @@ const AddSales = () => {
                                                 autoComplete='off'
                                                 className={`form-control form-control-sm no-date-icon ${dateErrors.transactionDateNepali ? 'is-invalid' : ''}`}
                                                 value={formData.transactionDateNepali}
+                                                // onChange={(e) => {
+                                                //     const value = e.target.value;
+                                                //     const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
+                                                //     if (sanitizedValue.length <= 10) {
+                                                //         setFormData(prev => ({
+                                                //             ...prev,
+                                                //             transactionDateNepali: sanitizedValue
+                                                //         }));
+                                                //         setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                //         // Auto-convert to AD when we have a complete valid date (10 characters)
+                                                //         if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
+                                                //             console.log('Converting BS to AD:', sanitizedValue);
+                                                //             const adDate = convertBsToAd(sanitizedValue);
+                                                //             console.log('Converted AD date:', adDate);
+                                                //             if (adDate) {
+                                                //                 setFormData(prev => ({
+                                                //                     ...prev,
+                                                //                     transactionDateRoman: adDate,
+                                                //                     billDate: adDate
+                                                //                 }));
+                                                //             }
+                                                //         }
+                                                //     }
+                                                // }}
                                                 onChange={(e) => {
                                                     const value = e.target.value;
                                                     const sanitizedValue = value.replace(/[^0-9/-]/g, '');
 
                                                     if (sanitizedValue.length <= 10) {
+                                                        // Update transaction date
                                                         setFormData(prev => ({
                                                             ...prev,
                                                             transactionDateNepali: sanitizedValue
                                                         }));
                                                         setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
 
-                                                        // Auto-convert to AD when we have a complete valid date (10 characters)
+                                                        // If complete date, update AD AND invoice dates (BS + AD) — SAME AS AddPurchase
                                                         if (sanitizedValue.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(sanitizedValue)) {
-                                                            console.log('Converting BS to AD:', sanitizedValue);
                                                             const adDate = convertBsToAd(sanitizedValue);
-                                                            console.log('Converted AD date:', adDate);
                                                             if (adDate) {
                                                                 setFormData(prev => ({
                                                                     ...prev,
                                                                     transactionDateRoman: adDate,
-                                                                    billDate: adDate
+                                                                    billDate: adDate,        // ✅ sync AD invoice date
+                                                                    nepaliDate: sanitizedValue  // ✅ sync BS invoice date
                                                                 }));
                                                             }
                                                         }
@@ -3492,12 +3518,32 @@ const AddSales = () => {
                                                         e.preventDefault();
                                                         const dateStr = e.target.value.trim();
 
+                                                        // if (!dateStr) {
+                                                        //     const currentDate = getCurrentNepaliDate();
+                                                        //     setFormData({
+                                                        //         ...formData,
+                                                        //         transactionDateNepali: currentDate
+                                                        //     });
+                                                        //     setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+
+                                                        //     setNotification({
+                                                        //         show: true,
+                                                        //         message: 'Date required. Auto-corrected to current date.',
+                                                        //         type: 'warning',
+                                                        //         duration: 3000
+                                                        //     });
+
+                                                        //     handleKeyDown(e, 'transactionDateNepali');
                                                         if (!dateStr) {
                                                             const currentDate = getCurrentNepaliDate();
-                                                            setFormData({
-                                                                ...formData,
-                                                                transactionDateNepali: currentDate
-                                                            });
+                                                            const adDate = convertBsToAd(currentDate);
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                transactionDateNepali: currentDate,
+                                                                transactionDateRoman: adDate || prev.transactionDateRoman,
+                                                                billDate: adDate || prev.billDate,
+                                                                nepaliDate: currentDate   // ✅ sync BS invoice date
+                                                            }));
                                                             setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
 
                                                             setNotification({
@@ -3508,6 +3554,7 @@ const AddSales = () => {
                                                             });
 
                                                             handleKeyDown(e, 'transactionDateNepali');
+
                                                         } else if (dateErrors.transactionDateNepali) {
                                                             e.target.focus();
                                                         } else {
@@ -3515,6 +3562,41 @@ const AddSales = () => {
                                                         }
                                                     }
                                                 }}
+                                                // onBlur={(e) => {
+                                                //     const dateStr = e.target.value.trim();
+                                                //     if (!dateStr) {
+                                                //         setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                //         return;
+                                                //     }
+
+                                                //     if (isValidNepaliDate(dateStr)) {
+                                                //         const adDate = convertBsToAd(dateStr);
+                                                //         if (adDate) {
+                                                //             setFormData(prev => ({
+                                                //                 ...prev,
+                                                //                 transactionDateNepali: dateStr,
+                                                //                 transactionDateRoman: adDate,
+                                                //                 billDate: adDate
+                                                //             }));
+                                                //         }
+                                                //         setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
+                                                //     } else {
+                                                //         const currentDate = getCurrentNepaliDate();
+                                                //         const adDate = convertBsToAd(currentDate);
+                                                //         setFormData(prev => ({
+                                                //             ...prev,
+                                                //             transactionDateNepali: currentDate,
+                                                //             transactionDateRoman: adDate || prev.transactionDateRoman,
+                                                //             billDate: adDate || prev.billDate
+                                                //         }));
+                                                //         setNotification({
+                                                //             show: true,
+                                                //             message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                //             type: 'warning',
+                                                //             duration: 3000
+                                                //         });
+                                                //     }
+                                                // }}
                                                 onBlur={(e) => {
                                                     const dateStr = e.target.value.trim();
                                                     if (!dateStr) {
@@ -3529,7 +3611,8 @@ const AddSales = () => {
                                                                 ...prev,
                                                                 transactionDateNepali: dateStr,
                                                                 transactionDateRoman: adDate,
-                                                                billDate: adDate
+                                                                billDate: adDate,      // ✅ sync AD invoice date
+                                                                nepaliDate: dateStr    // ✅ sync BS invoice date
                                                             }));
                                                         }
                                                         setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
@@ -3540,7 +3623,8 @@ const AddSales = () => {
                                                             ...prev,
                                                             transactionDateNepali: currentDate,
                                                             transactionDateRoman: adDate || prev.transactionDateRoman,
-                                                            billDate: adDate || prev.billDate
+                                                            billDate: adDate || prev.billDate,
+                                                            nepaliDate: currentDate   // ✅ sync BS invoice date on fallback too
                                                         }));
                                                         setNotification({
                                                             show: true,
