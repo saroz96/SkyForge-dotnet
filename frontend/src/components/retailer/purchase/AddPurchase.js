@@ -1476,13 +1476,23 @@ const AddPurchase = () => {
             effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
         }
 
+        // const finalTaxableAmount = preciseSubtract(
+        //     preciseAdd(taxableAmount, taxableCCAmount),
+        //     discountForTaxable
+        // );
         const finalTaxableAmount = preciseSubtract(
-            preciseAdd(taxableAmount, taxableCCAmount),
+            taxableAmount,
             discountForTaxable
         );
 
+
+        // const finalNonTaxableAmount = preciseSubtract(
+        //     preciseAdd(nonTaxableAmount, nonTaxableCCAmount),
+        //     discountForNonTaxable
+        // );
+
         const finalNonTaxableAmount = preciseSubtract(
-            preciseAdd(nonTaxableAmount, nonTaxableCCAmount),
+            nonTaxableAmount,
             discountForNonTaxable
         );
 
@@ -1491,10 +1501,19 @@ const AddPurchase = () => {
             vatAmount = preciseMultiply(finalTaxableAmount, formData.vatPercentage / 100);
         }
 
+        // let totalBeforeRoundOff = preciseAdd(
+        //     preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
+        //     vatAmount
+        // );
+
+        // Sum of taxable + non-taxable + VAT
         let totalBeforeRoundOff = preciseAdd(
             preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
             vatAmount
         );
+
+        // ✅ Add the CC Charge to the total AFTER calculating VAT
+        totalBeforeRoundOff = preciseAdd(totalBeforeRoundOff, totalCcAmount);
 
         let roundOffAmount = 0;
         let autoRoundOffAmount = 0;
@@ -4340,36 +4359,6 @@ const AddPurchase = () => {
                                     </tr>
 
                                     <tr id="taxableAmountRow">
-                                        <td style={{ padding: '1px' }}>
-                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>CC Charge</label>
-                                        </td>
-                                        <td style={{ padding: '1px' }}>
-                                            <div className="position-relative">
-                                                <input
-                                                    type="number"
-                                                    name="CCAmount"
-                                                    id="CCAmount"
-                                                    className="form-control form-control-sm"
-                                                    value={totals.totalCCAmount.toFixed(2)}
-                                                    readOnly
-                                                    onFocus={(e) => {
-                                                        e.target.select();
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            handleKeyDown(e, 'CCAmount');
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        height: '22px',
-                                                        fontSize: '0.875rem',
-                                                        paddingTop: '0.5rem',
-                                                        width: '100%',
-                                                        backgroundColor: '#f8f9fa'
-                                                    }}
-                                                />
-                                            </div>
-                                        </td>
                                         {company.vatEnabled && formData.isVatExempt !== 'true' && (
                                             <>
                                                 <td style={{ padding: '1px' }}>
@@ -4401,6 +4390,36 @@ const AddPurchase = () => {
                                                 <td colSpan="4"></td>
                                             </>
                                         )}
+                                        <td style={{ padding: '1px' }}>
+                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>CC Charge</label>
+                                        </td>
+                                        <td style={{ padding: '1px' }}>
+                                            <div className="position-relative">
+                                                <input
+                                                    type="number"
+                                                    name="CCAmount"
+                                                    id="CCAmount"
+                                                    className="form-control form-control-sm"
+                                                    value={totals.totalCCAmount.toFixed(2)}
+                                                    readOnly
+                                                    onFocus={(e) => {
+                                                        e.target.select();
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            handleKeyDown(e, 'CCAmount');
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        height: '22px',
+                                                        fontSize: '0.875rem',
+                                                        paddingTop: '0.5rem',
+                                                        width: '100%',
+                                                        backgroundColor: '#f8f9fa'
+                                                    }}
+                                                />
+                                            </div>
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td style={{ padding: '1px' }}>

@@ -2188,12 +2188,12 @@ const AddPurcRtn = () => {
         };
     }, []);
 
-    useEffect(() => {
-        if (isCCManuallyEdited) {
-            setManualCCAmount(null);
-            setIsCCManuallyEdited(false);
-        }
-    }, [items]);
+    // useEffect(() => {
+    //     if (isCCManuallyEdited) {
+    //         setManualCCAmount(null);
+    //         setIsCCManuallyEdited(false);
+    //     }
+    // }, [items]);
 
     // Add this function at the top of your AddPurcRtn component (after the useState declarations)
     const calculateCcAmount = (batchEntry, returnQuantity) => {
@@ -2216,6 +2216,216 @@ const AddPurcRtn = () => {
         // Round to 2 decimal places
         return Math.round(ccAmount * 100) / 100;
     };
+
+    // const calculateTotal = (itemsToCalculate = items) => {
+    //     let subTotal = 0;
+    //     let taxableAmount = 0;
+    //     let nonTaxableAmount = 0;
+    //     let totalCcAmount = 0;
+    //     let taxableCCAmount = 0;
+    //     let nonTaxableCCAmount = 0;
+
+    //     itemsToCalculate.forEach(item => {
+    //         const itemAmount = parseFloat(item.amount) || 0;
+    //         const itemCCAmount = parseFloat(item.itemCcAmount) || 0;
+
+    //         subTotal = preciseAdd(subTotal, itemAmount);
+    //         totalCcAmount = preciseAdd(totalCcAmount, itemCCAmount);
+
+    //         if (item.vatStatus === '13') {
+    //             taxableAmount = preciseAdd(taxableAmount, itemAmount);
+    //             taxableCCAmount = preciseAdd(taxableCCAmount, itemCCAmount);
+    //         } else {
+    //             nonTaxableAmount = preciseAdd(nonTaxableAmount, itemAmount);
+    //             nonTaxableCCAmount = preciseAdd(nonTaxableCCAmount, itemCCAmount);
+    //         }
+    //     });
+
+    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
+    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
+
+    //     let effectiveDiscount = 0;
+    //     let discountForTaxable = 0;
+    //     let discountForNonTaxable = 0;
+
+    //     if (discountAmount > 0) {
+    //         effectiveDiscount = discountAmount;
+
+    //         if (subTotal > 0) {
+    //             const taxableRatio = taxableAmount / subTotal;
+    //             const nonTaxableRatio = nonTaxableAmount / subTotal;
+
+    //             discountForTaxable = preciseMultiply(effectiveDiscount, taxableRatio);
+    //             discountForNonTaxable = preciseMultiply(effectiveDiscount, nonTaxableRatio);
+    //         }
+    //     } else if (discountPercentage > 0) {
+    //         discountForTaxable = preciseMultiply(taxableAmount, discountPercentage / 100);
+    //         discountForNonTaxable = preciseMultiply(nonTaxableAmount, discountPercentage / 100);
+    //         effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
+    //     }
+
+    //     const finalTaxableAmount = preciseSubtract(
+    //         preciseAdd(taxableAmount, taxableCCAmount),
+    //         discountForTaxable
+    //     );
+
+    //     const finalNonTaxableAmount = preciseSubtract(
+    //         preciseAdd(nonTaxableAmount, nonTaxableCCAmount),
+    //         discountForNonTaxable
+    //     );
+
+    //     let vatAmount = 0;
+    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
+    //         vatAmount = preciseMultiply(finalTaxableAmount, formData.vatPercentage / 100);
+    //     }
+
+    //     let totalBeforeRoundOff = preciseAdd(
+    //         preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
+    //         vatAmount
+    //     );
+
+    //     let roundOffAmount = 0;
+    //     let autoRoundOffAmount = 0;
+
+    //     // Calculate auto round-off if enabled
+    //     if (roundOffPurchaseReturn) {
+    //         const roundedTotal = Math.round(totalBeforeRoundOff);
+    //         autoRoundOffAmount = preciseSubtract(roundedTotal, totalBeforeRoundOff);
+    //     }
+
+    //     // Use auto or manual round-off
+    //     if (roundOffPurchaseReturn && !manualRoundOffOverride) {
+    //         roundOffAmount = autoRoundOffAmount;
+    //     } else {
+    //         roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+    //     }
+
+    //     const totalAmount = preciseAdd(totalBeforeRoundOff, roundOffAmount);
+
+    //     return {
+    //         subTotal: preciseRound(subTotal, 2),
+    //         taxableAmount: preciseRound(finalTaxableAmount, 2),
+    //         nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
+    //         vatAmount: preciseRound(vatAmount, 2),
+    //         totalAmount: preciseRound(totalAmount, 2),
+    //         totalCCAmount: preciseRound(totalCcAmount, 2),
+    //         discountAmount: preciseRound(effectiveDiscount, 2),
+    //         roundOffAmount: preciseRound(roundOffAmount, 2),
+    //         autoRoundOffAmount: preciseRound(autoRoundOffAmount, 2)
+    //     };
+    // };
+
+    // const calculateTotal = (itemsToCalculate = items) => {
+    //     let subTotal = 0;
+    //     let taxableAmount = 0;
+    //     let nonTaxableAmount = 0;
+    //     let totalCcAmount = 0;
+    //     let taxableCCAmount = 0;
+    //     let nonTaxableCCAmount = 0;
+
+    //     itemsToCalculate.forEach(item => {
+    //         const itemAmount = parseFloat(item.amount) || 0;
+    //         const itemCCAmount = parseFloat(item.itemCcAmount) || 0;
+
+    //         subTotal = preciseAdd(subTotal, itemAmount);
+    //         totalCcAmount = preciseAdd(totalCcAmount, itemCCAmount);
+
+    //         if (item.vatStatus === '13') {
+    //             taxableAmount = preciseAdd(taxableAmount, itemAmount);
+    //             taxableCCAmount = preciseAdd(taxableCCAmount, itemCCAmount);
+    //         } else {
+    //             nonTaxableAmount = preciseAdd(nonTaxableAmount, itemAmount);
+    //             nonTaxableCCAmount = preciseAdd(nonTaxableCCAmount, itemCCAmount);
+    //         }
+    //     });
+
+    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
+    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
+
+    //     let effectiveDiscount = 0;
+    //     let discountForTaxable = 0;
+    //     let discountForNonTaxable = 0;
+
+    //     if (discountAmount > 0) {
+    //         effectiveDiscount = discountAmount;
+    //         if (subTotal > 0) {
+    //             const taxableRatio = taxableAmount / subTotal;
+    //             const nonTaxableRatio = nonTaxableAmount / subTotal;
+    //             discountForTaxable = preciseMultiply(effectiveDiscount, taxableRatio);
+    //             discountForNonTaxable = preciseMultiply(effectiveDiscount, nonTaxableRatio);
+    //         }
+    //     } else if (discountPercentage > 0) {
+    //         discountForTaxable = preciseMultiply(taxableAmount, discountPercentage / 100);
+    //         discountForNonTaxable = preciseMultiply(nonTaxableAmount, discountPercentage / 100);
+    //         effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
+    //     }
+
+    //     // ── CC charge: use manual override if the user typed one ──
+    //     // isCCManuallyEdited === true → use manualCCAmount (reduces total)
+    //     // isCCManuallyEdited === false → use auto totalCcAmount (added to taxable, VAT applies)
+    //     const ccAmountUsed = isCCManuallyEdited
+    //         ? (parseFloat(manualCCAmount) || 0)
+    //         : totalCcAmount;
+
+    //     const isManualCC = isCCManuallyEdited;
+
+    //     // Taxable base: if manual CC, do NOT add CC into taxable base (CC is a separate reduction).
+    //     // If auto CC, add it into taxable base as before (existing behaviour).
+    //     const finalTaxableAmount = preciseSubtract(
+    //         isManualCC ? taxableAmount : preciseAdd(taxableAmount, taxableCCAmount),
+    //         discountForTaxable
+    //     );
+
+    //     const finalNonTaxableAmount = preciseSubtract(
+    //         isManualCC ? nonTaxableAmount : preciseAdd(nonTaxableAmount, nonTaxableCCAmount),
+    //         discountForNonTaxable
+    //     );
+
+    //     let vatAmount = 0;
+    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
+    //         vatAmount = preciseMultiply(finalTaxableAmount, formData.vatPercentage / 100);
+    //     }
+
+    //     // Sum of taxable + non-taxable + VAT
+    //     let totalBeforeRoundOff = preciseAdd(
+    //         preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
+    //         vatAmount
+    //     );
+
+    //     // Manual CC reduces the grand total
+    //     if (isManualCC) {
+    //         totalBeforeRoundOff = preciseSubtract(totalBeforeRoundOff, ccAmountUsed);
+    //     }
+
+    //     let roundOffAmount = 0;
+    //     let autoRoundOffAmount = 0;
+
+    //     if (roundOffPurchaseReturn) {
+    //         const roundedTotal = Math.round(totalBeforeRoundOff);
+    //         autoRoundOffAmount = preciseSubtract(roundedTotal, totalBeforeRoundOff);
+    //     }
+
+    //     if (roundOffPurchaseReturn && !manualRoundOffOverride) {
+    //         roundOffAmount = autoRoundOffAmount;
+    //     } else {
+    //         roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+    //     }
+
+    //     const totalAmount = preciseAdd(totalBeforeRoundOff, roundOffAmount);
+
+    //     return {
+    //         subTotal: preciseRound(subTotal, 2),
+    //         taxableAmount: preciseRound(finalTaxableAmount, 2),
+    //         nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
+    //         vatAmount: preciseRound(vatAmount, 2),
+    //         totalAmount: preciseRound(totalAmount, 2),
+    //         totalCCAmount: preciseRound(ccAmountUsed, 2),   // ← what the input shows
+    //         autoCCAmount: preciseRound(totalCcAmount, 2),   // ← original auto sum (for reference)
+    //         discountAmount: preciseRound(effectiveDiscount, 2),
+    //         roundOffAmount: preciseRound(roundOffAmount, 2),
+    //         autoRoundOffAmount: preciseRound(autoRoundOffAmount, 2)
+    //     };
+    // };
 
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
@@ -2250,11 +2460,9 @@ const AddPurcRtn = () => {
 
         if (discountAmount > 0) {
             effectiveDiscount = discountAmount;
-
             if (subTotal > 0) {
                 const taxableRatio = taxableAmount / subTotal;
                 const nonTaxableRatio = nonTaxableAmount / subTotal;
-
                 discountForTaxable = preciseMultiply(effectiveDiscount, taxableRatio);
                 discountForNonTaxable = preciseMultiply(effectiveDiscount, nonTaxableRatio);
             }
@@ -2264,13 +2472,21 @@ const AddPurcRtn = () => {
             effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
         }
 
+        // ── CC charge logic ──
+        // 1. Determine which CC amount to use (manual override or auto sum)
+        const ccAmountUsed = isCCManuallyEdited
+            ? (parseFloat(manualCCAmount) || 0)
+            : totalCcAmount;
+
+        // 2. ALWAYS calculate the taxable base WITHOUT adding CC into it.
+        // (CC is treated as a deduction from the grand total, not a taxable addition).
         const finalTaxableAmount = preciseSubtract(
-            preciseAdd(taxableAmount, taxableCCAmount),
+            taxableAmount,
             discountForTaxable
         );
 
         const finalNonTaxableAmount = preciseSubtract(
-            preciseAdd(nonTaxableAmount, nonTaxableCCAmount),
+            nonTaxableAmount,
             discountForNonTaxable
         );
 
@@ -2279,21 +2495,23 @@ const AddPurcRtn = () => {
             vatAmount = preciseMultiply(finalTaxableAmount, formData.vatPercentage / 100);
         }
 
+        // Sum of taxable + non-taxable + VAT
         let totalBeforeRoundOff = preciseAdd(
             preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
             vatAmount
         );
 
+        // 3. ALWAYS reduce the grand total by the CC Amount
+        totalBeforeRoundOff = preciseSubtract(totalBeforeRoundOff, ccAmountUsed);
+
         let roundOffAmount = 0;
         let autoRoundOffAmount = 0;
 
-        // Calculate auto round-off if enabled
         if (roundOffPurchaseReturn) {
             const roundedTotal = Math.round(totalBeforeRoundOff);
             autoRoundOffAmount = preciseSubtract(roundedTotal, totalBeforeRoundOff);
         }
 
-        // Use auto or manual round-off
         if (roundOffPurchaseReturn && !manualRoundOffOverride) {
             roundOffAmount = autoRoundOffAmount;
         } else {
@@ -2308,7 +2526,8 @@ const AddPurcRtn = () => {
             nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
             vatAmount: preciseRound(vatAmount, 2),
             totalAmount: preciseRound(totalAmount, 2),
-            totalCCAmount: preciseRound(totalCcAmount, 2),
+            totalCCAmount: preciseRound(ccAmountUsed, 2),
+            autoCCAmount: preciseRound(totalCcAmount, 2),
             discountAmount: preciseRound(effectiveDiscount, 2),
             roundOffAmount: preciseRound(roundOffAmount, 2),
             autoRoundOffAmount: preciseRound(autoRoundOffAmount, 2)
@@ -2807,6 +3026,9 @@ const AddPurcRtn = () => {
                 }
                 return new Date(dateString).toISOString();
             };
+            const billDetailsCcAmount = isCCManuallyEdited
+                ? (parseFloat(manualCCAmount) || 0)
+                : (totals.totalCCAmount ?? 0);
 
             const billData = {
                 accountId: formData.accountId,
@@ -2822,7 +3044,8 @@ const AddPurcRtn = () => {
                 subTotal: calculatedValues.subTotal,
                 taxableAmount: calculatedValues.taxableAmount,
                 nonVatPurchaseReturn: calculatedValues.nonTaxableAmount,
-                totalCcAmount: calculatedValues.totalCCAmount,
+                // totalCcAmount: calculatedValues.totalCCAmount,
+                totalCcAmount: billDetailsCcAmount,
                 totalAmount: calculatedValues.totalAmount,
                 // nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
                 // date: formData.billDate,
@@ -5190,7 +5413,43 @@ const AddPurcRtn = () => {
 
                                     {/* Row 2: CC Charge — ALWAYS visible, regardless of VAT type */}
                                     <tr id="ccChargeRow">
-                                        {/* CC Charge Label */}
+                                        {/* VAT-specific fields — only shown when VAT is active and not exempt */}
+                                        {company.vatEnabled && formData.isVatExempt !== 'true' ? (
+                                            <>
+                                                <td style={{ padding: '1px' }}>
+                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>
+                                                        Rs. {formatter.format(totals.taxableAmount)}
+                                                    </p>
+                                                </td>
+                                                <td className="d-none">
+                                                    <input
+                                                        type="number"
+                                                        name="vatPercentage"
+                                                        id="vatPercentage"
+                                                        className="form-control"
+                                                        value={formData.vatPercentage}
+                                                        readOnly
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
+                                                        VAT ({formData.vatPercentage || 13}%):
+                                                    </label>
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>
+                                                        Rs. {formatter.format(totals.vatAmount)}
+                                                    </p>
+                                                </td>
+                                            </>
+                                        ) : (
+                                            /* Pad remaining 4 columns when VAT is not shown, keeping table structure valid */
+                                            <td colSpan="4"></td>
+                                        )}
+                                                              {/* CC Charge Label */}
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>CC Charge</label>
                                         </td>
@@ -5245,43 +5504,6 @@ const AddPurcRtn = () => {
                                                 )}
                                             </div>
                                         </td>
-
-                                        {/* VAT-specific fields — only shown when VAT is active and not exempt */}
-                                        {company.vatEnabled && formData.isVatExempt !== 'true' ? (
-                                            <>
-                                                <td style={{ padding: '1px' }}>
-                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
-                                                </td>
-                                                <td style={{ padding: '1px' }}>
-                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>
-                                                        Rs. {formatter.format(totals.taxableAmount)}
-                                                    </p>
-                                                </td>
-                                                <td className="d-none">
-                                                    <input
-                                                        type="number"
-                                                        name="vatPercentage"
-                                                        id="vatPercentage"
-                                                        className="form-control"
-                                                        value={formData.vatPercentage}
-                                                        readOnly
-                                                    />
-                                                </td>
-                                                <td style={{ padding: '1px' }}>
-                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
-                                                        VAT ({formData.vatPercentage || 13}%):
-                                                    </label>
-                                                </td>
-                                                <td style={{ padding: '1px' }}>
-                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>
-                                                        Rs. {formatter.format(totals.vatAmount)}
-                                                    </p>
-                                                </td>
-                                            </>
-                                        ) : (
-                                            /* Pad remaining 4 columns when VAT is not shown, keeping table structure valid */
-                                            <td colSpan="4"></td>
-                                        )}
                                     </tr>
 
                                     {/* Row 3: Round Off, Total Amount, In Words */}

@@ -861,7 +861,7 @@ namespace SkyForge.Services.Retailer.PurchaseReturnServices
                 }
 
                 // Persist server-computed CC back onto the header (overwrites whatever client sent)
-                purchaseReturn.TotalCcAmount = totalCcAmount;
+                // purchaseReturn.TotalCcAmount = totalCcAmount;
 
                 // ========== CREATE HEADER TRANSACTIONS WITH TRANSACTION ITEMS ==========
 

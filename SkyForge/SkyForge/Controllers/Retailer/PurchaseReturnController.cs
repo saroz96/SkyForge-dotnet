@@ -443,14 +443,14 @@ namespace SkyForge.Controllers.Retailer
                     });
                 }
 
-                if (dto.IsVatExempt)
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "Invalid VAT selection."
-                    });
-                }
+                // if (dto.IsVatExempt)
+                // {
+                //     return BadRequest(new
+                //     {
+                //         success = false,
+                //         error = "Invalid VAT selection."
+                //     });
+                // }
 
                 if (string.IsNullOrEmpty(dto.PaymentMode))
                 {

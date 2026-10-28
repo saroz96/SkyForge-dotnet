@@ -1144,13 +1144,107 @@ const EditPurchase = () => {
         return parseFloat(value.toFixed(decimals));
     };
 
+    // const calculateTotal = (itemsToCalculate = items) => {
+    //     let subTotal = 0;
+    //     let taxableAmount = 0;
+    //     let nonTaxableAmount = 0;
+    //     let totalCcAmount = 0;
+    //     let taxableCCAmount = 0;
+    //     let nonTaxableCCAmount = 0;
+
+    //     itemsToCalculate.forEach(item => {
+    //         const itemAmount = parseFloat(item.amount) || 0;
+    //         const itemCCAmount = parseFloat(item.itemCcAmount) || 0;
+
+    //         subTotal = preciseAdd(subTotal, itemAmount);
+    //         totalCcAmount = preciseAdd(totalCcAmount, itemCCAmount);
+
+    //         if (item.vatStatus === '13') {
+    //             taxableAmount = preciseAdd(taxableAmount, itemAmount);
+    //             taxableCCAmount = preciseAdd(taxableCCAmount, itemCCAmount);
+    //         } else {
+    //             nonTaxableAmount = preciseAdd(nonTaxableAmount, itemAmount);
+    //             nonTaxableCCAmount = preciseAdd(nonTaxableCCAmount, itemCCAmount);
+    //         }
+    //     });
+
+    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
+    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
+
+    //     let effectiveDiscount = 0;
+    //     let discountForTaxable = 0;
+    //     let discountForNonTaxable = 0;
+
+    //     if (discountAmount > 0) {
+    //         effectiveDiscount = discountAmount;
+
+    //         if (subTotal > 0) {
+    //             const taxableRatio = preciseDivide(taxableAmount, subTotal);
+    //             const nonTaxableRatio = preciseDivide(nonTaxableAmount, subTotal);
+
+    //             discountForTaxable = preciseMultiply(effectiveDiscount, taxableRatio);
+    //             discountForNonTaxable = preciseMultiply(effectiveDiscount, nonTaxableRatio);
+    //         }
+    //     } else if (discountPercentage > 0) {
+    //         discountForTaxable = preciseMultiply(taxableAmount, preciseDivide(discountPercentage, 100));
+    //         discountForNonTaxable = preciseMultiply(nonTaxableAmount, preciseDivide(discountPercentage, 100));
+    //         effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
+    //     }
+
+    //     const finalTaxableAmount = preciseSubtract(
+    //         preciseAdd(taxableAmount, taxableCCAmount),
+    //         discountForTaxable
+    //     );
+
+    //     const finalNonTaxableAmount = preciseSubtract(
+    //         preciseAdd(nonTaxableAmount, nonTaxableCCAmount),
+    //         discountForNonTaxable
+    //     );
+
+    //     let vatAmount = 0;
+    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
+    //         vatAmount = preciseMultiply(finalTaxableAmount, preciseDivide(formData.vatPercentage, 100));
+    //     }
+
+    //     let totalBeforeRoundOff = preciseAdd(
+    //         preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
+    //         vatAmount
+    //     );
+
+    //     let roundOffAmount = 0;
+    //     let autoRoundOffAmount = 0;
+
+    //     if (roundOffPurchase) {
+    //         const roundedTotal = Math.round(totalBeforeRoundOff);
+    //         autoRoundOffAmount = preciseSubtract(roundedTotal, totalBeforeRoundOff);
+    //     }
+
+    //     if (roundOffPurchase && !manualRoundOffOverride) {
+    //         roundOffAmount = autoRoundOffAmount;
+    //     } else {
+    //         roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
+    //     }
+
+    //     const totalAmount = preciseAdd(totalBeforeRoundOff, roundOffAmount);
+
+    //     return {
+    //         subTotal: preciseRound(subTotal, 2),
+    //         taxableAmount: preciseRound(finalTaxableAmount, 2),
+    //         nonTaxableAmount: preciseRound(finalNonTaxableAmount, 2),
+    //         vatAmount: preciseRound(vatAmount, 2),
+    //         totalAmount: preciseRound(totalAmount, 2),
+    //         totalCCAmount: preciseRound(totalCcAmount, 2),
+    //         discountAmount: preciseRound(effectiveDiscount, 2),
+    //         roundOffAmount: preciseRound(roundOffAmount, 2),
+    //         autoRoundOffAmount: preciseRound(autoRoundOffAmount, 2)
+    //     };
+    // };
+
     const calculateTotal = (itemsToCalculate = items) => {
         let subTotal = 0;
         let taxableAmount = 0;
         let nonTaxableAmount = 0;
         let totalCcAmount = 0;
-        let taxableCCAmount = 0;
-        let nonTaxableCCAmount = 0;
 
         itemsToCalculate.forEach(item => {
             const itemAmount = parseFloat(item.amount) || 0;
@@ -1161,10 +1255,8 @@ const EditPurchase = () => {
 
             if (item.vatStatus === '13') {
                 taxableAmount = preciseAdd(taxableAmount, itemAmount);
-                taxableCCAmount = preciseAdd(taxableCCAmount, itemCCAmount);
             } else {
                 nonTaxableAmount = preciseAdd(nonTaxableAmount, itemAmount);
-                nonTaxableCCAmount = preciseAdd(nonTaxableCCAmount, itemCCAmount);
             }
         });
 
@@ -1177,11 +1269,9 @@ const EditPurchase = () => {
 
         if (discountAmount > 0) {
             effectiveDiscount = discountAmount;
-
             if (subTotal > 0) {
                 const taxableRatio = preciseDivide(taxableAmount, subTotal);
                 const nonTaxableRatio = preciseDivide(nonTaxableAmount, subTotal);
-
                 discountForTaxable = preciseMultiply(effectiveDiscount, taxableRatio);
                 discountForNonTaxable = preciseMultiply(effectiveDiscount, nonTaxableRatio);
             }
@@ -1191,25 +1281,31 @@ const EditPurchase = () => {
             effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
         }
 
+        // ✅ 1. Taxable Amount is purely items minus discount (No CC here)
         const finalTaxableAmount = preciseSubtract(
-            preciseAdd(taxableAmount, taxableCCAmount),
+            taxableAmount,
             discountForTaxable
         );
 
         const finalNonTaxableAmount = preciseSubtract(
-            preciseAdd(nonTaxableAmount, nonTaxableCCAmount),
+            nonTaxableAmount,
             discountForNonTaxable
         );
 
+        // ✅ 2. VAT is calculated purely on the item taxable amount
         let vatAmount = 0;
         if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
             vatAmount = preciseMultiply(finalTaxableAmount, preciseDivide(formData.vatPercentage, 100));
         }
 
+        // ✅ 3. Sum of taxable + non-taxable + VAT
         let totalBeforeRoundOff = preciseAdd(
             preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
             vatAmount
         );
+
+        // ✅ 4. Add CC Charge to the Grand Total (AFTER VAT is calculated)
+        totalBeforeRoundOff = preciseAdd(totalBeforeRoundOff, totalCcAmount);
 
         let roundOffAmount = 0;
         let autoRoundOffAmount = 0;
@@ -3727,36 +3823,6 @@ const EditPurchase = () => {
                                     </tr>
 
                                     <tr id="taxableAmountRow">
-                                        <td style={{ padding: '1px' }}>
-                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>CC Charge</label>
-                                        </td>
-                                        <td style={{ padding: '1px' }}>
-                                            <div className="position-relative">
-                                                <input
-                                                    type="number"
-                                                    name="ccAmount"
-                                                    id="ccAmount"
-                                                    className="form-control form-control-sm"
-                                                    value={totals.totalCCAmount.toFixed(2)}
-                                                    readOnly
-                                                    onFocus={(e) => {
-                                                        e.target.select();
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            handleKeyDown(e, 'ccAmount');
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        height: '22px',
-                                                        fontSize: '0.875rem',
-                                                        paddingTop: '0.5rem',
-                                                        width: '100%',
-                                                        backgroundColor: '#f8f9fa'
-                                                    }}
-                                                />
-                                            </div>
-                                        </td>
                                         {company.vatEnabled && formData.isVatExempt !== 'true' && (
                                             <>
                                                 <td style={{ padding: '1px' }}>
@@ -3788,6 +3854,36 @@ const EditPurchase = () => {
                                                 <td colSpan="4"></td>
                                             </>
                                         )}
+                                        <td style={{ padding: '1px' }}>
+                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>CC Charge</label>
+                                        </td>
+                                        <td style={{ padding: '1px' }}>
+                                            <div className="position-relative">
+                                                <input
+                                                    type="number"
+                                                    name="ccAmount"
+                                                    id="ccAmount"
+                                                    className="form-control form-control-sm"
+                                                    value={totals.totalCCAmount.toFixed(2)}
+                                                    readOnly
+                                                    onFocus={(e) => {
+                                                        e.target.select();
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            handleKeyDown(e, 'ccAmount');
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        height: '22px',
+                                                        fontSize: '0.875rem',
+                                                        paddingTop: '0.5rem',
+                                                        width: '100%',
+                                                        backgroundColor: '#f8f9fa'
+                                                    }}
+                                                />
+                                            </div>
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td style={{ padding: '1px' }}>
