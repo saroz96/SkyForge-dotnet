@@ -242,7 +242,7 @@ const AddCashSalesReturn = () => {
     const [lastSearchQuery, setLastSearchQuery] = useState('');
     const [shouldShowLastSearchResults, setShouldShowLastSearchResults] = useState(false);
     const debouncedSearchQuery = useDebounce(searchQuery, 500);
-
+    const [highlightedRowIndex, setHighlightedRowIndex] = useState(-1);
     const [isSearching, setIsSearching] = useState(false);
     const [searchResults, setSearchResults] = useState([]);
     const [searchPage, setSearchPage] = useState(1);
@@ -4278,7 +4278,7 @@ const AddCashSalesReturn = () => {
             </div>
 
             {/* Header Item Modal */}
-            {showHeaderItemModal && (
+            {/* {showHeaderItemModal && (
                 <div
                     className="modal fade show"
                     id="headerItemModal"
@@ -4396,7 +4396,7 @@ const AddCashSalesReturn = () => {
                             </div>
 
                             <div className="modal-body p-0">
-                                <div style={{ height: 'calc(35vh - 60px)' }}>
+                                <div style={{ height: 'calc(55vh - 120px)' }}>
                                     <div
                                         id="dropdownMenu"
                                         className="w-100 h-100"
@@ -4460,250 +4460,208 @@ const AddCashSalesReturn = () => {
                         </div>
                     </div>
                 </div>
-            )}
+            )} */}
 
-            {/* Batch Selection Modal */}
-            {/* {showBatchSelectionModal && selectedItemForBatch && (
-                <div className="modal fade show" id="batchModal" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                    <div className="modal-dialog modal-lg modal-dialog-centered">
-                        <div className="modal-content" style={{ borderRadius: '8px', overflow: 'hidden', minHeight: '200px' }}>
-                            <div className="modal-header py-0" style={{ backgroundColor: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
-                                <h5 className="modal-title mb-0 mx-auto fw-semibold" style={{ fontSize: '1.1rem' }}>
-                                    <i className="bi bi-box-seam me-2"></i>
-                                    Batch Information: {selectedItemForBatch.name}
-                                </h5>
+            {showHeaderItemModal && (
+                <div
+                    className="modal fade show"
+                    id="headerItemModal"
+                    tabIndex="-1"
+                    style={{
+                        display: 'block',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 1050
+                    }}
+                >
+                    <div
+                        className="modal-dialog modal-xl"
+                        style={{
+                            position: 'absolute',
+                            top: 'auto',
+                            bottom: '0',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            margin: '0',
+                            width: '90%',
+                            maxWidth: '90%'
+                        }}
+                    >
+                        <div
+                            className="modal-content"
+                            style={{
+                                height: '35vh',
+                                borderBottomLeftRadius: '0',
+                                borderBottomRightRadius: '0',
+                                borderTopLeftRadius: '0.5rem',
+                                borderTopRightRadius: '0.5rem'
+                            }}
+                        >
+                            {/* 1. STICKY MODAL HEADER */}
+                            <div
+                                className="modal-header py-0"
+                                style={{
+                                    position: 'sticky',
+                                    top: 0,
+                                    zIndex: 2,
+                                    backgroundColor: 'white'
+                                }}
+                            >
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>Select Item</h5>
+                                <div className="d-flex align-items-center" style={{ flex: 1, marginLeft: '10px' }}>
+                                    <div className="position-relative" style={{ width: '100%' }}>
+                                        <input
+                                            type="text"
+                                            className="form-control form-control-sm"
+                                            placeholder="Search items... (Press F6 to create new item)"
+                                            autoComplete='off'
+                                            value={headerSearchQuery}
+                                            onChange={(e) => {
+                                                const query = e.target.value;
+                                                setHeaderSearchQuery(query);
+                                                if (query.trim() !== '' && headerShouldShowLastSearchResults) {
+                                                    setHeaderShouldShowLastSearchResults(false);
+                                                    setHeaderLastSearchQuery('');
+                                                }
+                                            }}
+                                            autoFocus
+                                            onFocus={() => {
+                                                // RESET ROW FOCUS ON INPUT FOCUS
+                                                setHighlightedRowIndex(-1);
+                                                document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowDown') {
+                                                    e.preventDefault();
+                                                    const firstItem = document.querySelector('.dropdown-item');
+                                                    if (firstItem) {
+                                                        firstItem.focus();
+                                                    }
+                                                } else if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const activeItem = document.querySelector('.dropdown-item.active');
+                                                    if (activeItem) {
+                                                        const index = parseInt(activeItem.getAttribute('data-index'));
+                                                        const itemToAdd = headerSearchResults[index];
+                                                        if (itemToAdd) {
+                                                            selectItemForBatchSelection(itemToAdd);
+                                                            setShowHeaderItemModal(false);
+                                                        }
+                                                    } else {
+                                                        if (!headerSearchQuery.trim()) {
+                                                            setShowHeaderItemModal(false);
+                                                            setTimeout(() => {
+                                                                const discountInput = document.getElementById('discountPercentage');
+                                                                if (discountInput) {
+                                                                    discountInput.focus();
+                                                                    discountInput.select();
+                                                                }
+                                                            }, 50);
+                                                        }
+                                                    }
+                                                } else if (e.key === 'F6') {
+                                                    e.preventDefault();
+                                                    setShowItemsModal(true);
+                                                    setShowHeaderItemModal(false);
+                                                    setHeaderSearchQuery('');
+                                                    setHeaderShouldShowLastSearchResults(false);
+                                                    setHeaderLastSearchQuery('');
+                                                } else if (e.key === 'Escape') {
+                                                    e.preventDefault();
+                                                    setShowHeaderItemModal(false);
+                                                }
+                                            }}
+                                            style={{
+                                                height: '24px',
+                                                fontSize: '0.75rem',
+                                                padding: '0.25rem 0.5rem',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    </div>
+                                </div>
                                 <button
                                     type="button"
-                                    className="btn-close position-absolute"
-                                    style={{ right: '1rem', top: '0.25rem' }}
-                                    onClick={() => {
-                                        setShowBatchSelectionModal(false);
-                                        setSelectedItemForBatch(null);
-                                        setShowHeaderItemModal(true);
-                                    }}
+                                    className="btn-close"
+                                    onClick={handleHeaderItemModalClose}
                                     aria-label="Close"
+                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
                                 ></button>
                             </div>
-                            <div className="modal-body p-0" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                                {selectedItemForBatch.stockEntries && selectedItemForBatch.stockEntries.every(entry => entry.quantity === 0) ? (
-                                    <div className="d-flex justify-content-center align-items-center py-2">
-                                        <div className="alert alert-warning d-flex align-items-center py-2 px-3 mb-0 w-75 text-center">
-                                            <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                                            <span>Out of stock</span>
+
+                            {/* 2. SCROLLABLE MODAL BODY */}
+                            <div className="modal-body p-0" style={{ overflow: 'hidden' }}>
+                                <div style={{ height: 'calc(55vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+                                    <div
+                                        id="dropdownMenu"
+                                        className="w-100 h-100"
+                                        style={{
+                                            border: '1px solid #dee2e6',
+                                            borderRadius: '0.25rem',
+                                            overflowY: 'auto', // ENABLE SCROLL INSIDE LIST
+                                            display: 'flex',
+                                            flexDirection: 'column'
+                                        }}
+                                    >
+                                        {/* 3. STICKY COLUMN HEADERS */}
+                                        <div className="dropdown-header" style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
+                                            alignItems: 'center',
+                                            padding: '0 8px',
+                                            height: '20px',
+                                            background: '#f0f0f0',
+                                            fontWeight: 'bold',
+                                            borderBottom: '1px solid #dee2e6',
+                                            position: 'sticky',
+                                            top: 0,
+                                            zIndex: 1,
+                                            fontSize: '0.7rem'
+                                        }}>
+                                            <div><strong>#</strong></div>
+                                            <div><strong>HSN</strong></div>
+                                            <div><strong>Description</strong></div>
+                                            <div><strong>Category</strong></div>
+                                            <div><strong>Stock</strong></div>
+                                            <div><strong>Unit</strong></div>
+                                            <div><strong>Rate</strong></div>
                                         </div>
+
+                                        {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
+                                            <VirtualizedItemListForSales
+                                                items={headerSearchResults}
+                                                onItemClick={(item) => {
+                                                    selectItemForBatchSelection(item);
+                                                    setShowHeaderItemModal(false);
+                                                }}
+                                                searchRef={{ current: document.querySelector('#headerItemModal input[type="text"]') }}
+                                                hasMore={hasMoreHeaderSearchResults}
+                                                isSearching={isHeaderSearching}
+                                                onLoadMore={loadMoreHeaderSearchItems}
+                                                totalItems={totalHeaderSearchItems}
+                                                page={headerSearchPage}
+                                                searchQuery={headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery}
+                                                setNotification={setNotification}
+                                            />
+                                        ) : (
+                                            <div className="text-center py-3 text-muted" style={{ fontSize: '0.75rem' }}>
+                                                {headerSearchQuery ? 'No items found' : 'Type to search items'}
+                                                <div className="small mt-1">
+                                                    <small className="text-info">Press F6 to create a new item</small>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                ) : (
-                                    <div className="table-responsive" style={{
-                                        maxHeight: 'calc(55vh - 110px)',
-                                        overflowY: 'auto'
-                                    }} id="batchTableContainer">
-                                        <table className="table table-sm table-hover mb-0">
-                                            <thead className="table-light" style={{
-                                                position: 'sticky',
-                                                top: 0,
-                                                zIndex: 1,
-                                                backgroundColor: '#f8f9fa'
-                                            }}>
-                                                <tr className="text-center">
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Batch No.</th>
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Expiry Date</th>
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Stock</th>
-                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Rate</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {selectedItemForBatch.stockEntries
-                                                    .filter(entry => entry.quantity > 0)
-                                                    .map((entry, index) => {
-                                                        // Calculate used stock for this batch in current bill
-                                                        const usedStock = items
-                                                            .filter(item =>
-                                                                item.itemId === selectedItemForBatch.id &&
-                                                                item.batchNumber === entry.batchNumber &&
-                                                                item.uniqueUuid === entry.uniqueUuid
-                                                            )
-                                                            .reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
-
-                                                        const availableStock = Math.max(0, (entry.quantity || 0) - usedStock);
-
-                                                        return (
-                                                            <tr
-                                                                key={index}
-                                                                className={`batch-row text-center ${index === 0 ? 'bg-primary text-white' : ''}`}
-                                                                style={{
-                                                                    height: '24px',
-                                                                    cursor: availableStock > 0 ? 'pointer' : 'not-allowed',
-                                                                    fontSize: '0.75rem',
-                                                                    opacity: availableStock > 0 ? 1 : 0.6
-                                                                }}
-                                                                onClick={() => {
-                                                                    if (availableStock > 0) {
-                                                                        handleBatchSelect(entry);
-                                                                    }
-                                                                }}
-                                                                tabIndex={availableStock > 0 ? 0 : -1}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter' && availableStock > 0) {
-                                                                        e.preventDefault();
-                                                                        handleBatchSelect(entry);
-                                                                    } else if (e.key === 'ArrowDown') {
-                                                                        e.preventDefault();
-                                                                        const nextRow = e.currentTarget.nextElementSibling;
-                                                                        if (nextRow) {
-                                                                            e.currentTarget.classList.remove('bg-primary', 'text-white');
-                                                                            nextRow.classList.add('bg-primary', 'text-white');
-                                                                            nextRow.focus();
-
-                                                                            const tableContainer = document.getElementById('batchTableContainer');
-                                                                            if (tableContainer) {
-                                                                                const rowRect = nextRow.getBoundingClientRect();
-                                                                                const containerRect = tableContainer.getBoundingClientRect();
-
-                                                                                if (rowRect.bottom > containerRect.bottom) {
-                                                                                    nextRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    } else if (e.key === 'ArrowUp') {
-                                                                        e.preventDefault();
-                                                                        const prevRow = e.currentTarget.previousElementSibling;
-                                                                        if (prevRow) {
-                                                                            e.currentTarget.classList.remove('bg-primary', 'text-white');
-                                                                            prevRow.classList.add('bg-primary', 'text-white');
-                                                                            prevRow.focus();
-
-                                                                            const tableContainer = document.getElementById('batchTableContainer');
-                                                                            if (tableContainer) {
-                                                                                const rowRect = prevRow.getBoundingClientRect();
-                                                                                const containerRect = tableContainer.getBoundingClientRect();
-
-                                                                                if (rowRect.top < containerRect.top) {
-                                                                                    prevRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    } else if (e.key === 'Escape') {
-                                                                        e.preventDefault();
-                                                                        setShowBatchSelectionModal(false);
-                                                                        setSelectedItemForBatch(null);
-                                                                        setShowHeaderItemModal(true);
-                                                                    }
-                                                                }}
-                                                                onFocus={(e) => {
-                                                                    if (availableStock > 0) {
-                                                                        document.querySelectorAll('.batch-row').forEach(row => {
-                                                                            row.classList.remove('bg-primary', 'text-white');
-                                                                        });
-                                                                        e.currentTarget.classList.add('bg-primary', 'text-white');
-
-                                                                        const tableContainer = document.getElementById('batchTableContainer');
-                                                                        if (tableContainer) {
-                                                                            const rowRect = e.currentTarget.getBoundingClientRect();
-                                                                            const containerRect = tableContainer.getBoundingClientRect();
-
-                                                                            if (rowRect.bottom > containerRect.bottom) {
-                                                                                e.currentTarget.scrollIntoView({ block: 'end', behavior: 'smooth' });
-                                                                            } else if (rowRect.top < containerRect.top) {
-                                                                                e.currentTarget.scrollIntoView({ block: 'start', behavior: 'smooth' });
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                onMouseEnter={(e) => {
-                                                                    if (availableStock > 0) {
-                                                                        document.querySelectorAll('.batch-row').forEach(row => {
-                                                                            row.classList.remove('bg-primary', 'text-white');
-                                                                        });
-                                                                        e.currentTarget.classList.add('bg-primary', 'text-white');
-                                                                    }
-                                                                }}
-                                                                title={availableStock > 0
-                                                                    ? `Total: ${entry.quantity} | Used in current bill: ${usedStock} | Available: ${availableStock}\nClick to select this batch`
-                                                                    : `Total: ${entry.quantity} | Used in current bill: ${usedStock} | Available: ${availableStock}\nOut of stock`
-                                                                }
-                                                            >
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{entry.batchNumber || 'N/A'}</td>
-                                                                <td className="align-middle" style={{ padding: '3px' }}>
-                                                                    {entry.expiryDate ? new Date(entry.expiryDate).toLocaleDateString('en-NP') : 'N/A'}
-                                                                </td>
-                                                                <td className="align-middle fw-semibold" style={{ padding: '3px' }}>
-                                                                    <span
-                                                                        style={{
-                                                                            color: availableStock <= 0 ? '#dc3545' :
-                                                                                availableStock < 5 ? '#ffc107' :
-                                                                                    '#198754',
-                                                                            position: 'relative'
-                                                                        }}
-                                                                    >
-                                                                        {availableStock}
-                                                                        {usedStock > 0 && (
-                                                                            <small
-                                                                                style={{
-                                                                                    fontSize: '0.6rem',
-                                                                                    color: '#6c757d',
-                                                                                    marginLeft: '2px',
-                                                                                    position: 'absolute',
-                                                                                    top: '-8px',
-                                                                                    right: '-12px'
-                                                                                }}
-                                                                                title={`Used in current bill: ${usedStock}`}
-                                                                            >
-                                                                                ({usedStock})
-                                                                            </small>
-                                                                        )}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{Math.round((entry.price || 0) * 100) / 100}</td>
-                                                                <td className="d-none">{entry.uniqueUuid}</td>
-                                                            </tr>
-                                                        );
-                                                    })
-                                                }
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="modal-footer py-0 justify-content-center" style={{
-                                backgroundColor: '#f8f9fa',
-                                borderTop: '1px solid #dee2e6',
-                            }}>
-                                <button
-                                    type="button"
-                                    className="btn btn-primary btn-sm py-1 px-3 d-flex align-items-center"
-                                    onClick={() => {
-                                        setShowBatchSelectionModal(false);
-                                        setSelectedItemForBatch(null);
-                                        setShowHeaderItemModal(true);
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            setShowBatchSelectionModal(false);
-                                            setSelectedItemForBatch(null);
-                                            setShowHeaderItemModal(true);
-                                        } else if (e.key === 'Escape') {
-                                            e.preventDefault();
-                                            setShowBatchSelectionModal(false);
-                                            setSelectedItemForBatch(null);
-                                            setShowHeaderItemModal(true);
-                                        }
-                                    }}
-                                    style={{
-                                        fontSize: '0.8rem',
-                                        lineHeight: '1.2',
-                                        minHeight: '28px'
-                                    }}
-                                >
-                                    <i className="bi bi-x-circle me-1"></i>
-                                    Close
-                                </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            )} */}
+            )}
 
             {showBatchSelectionModal && selectedItemForBatch && (
                 <div className="modal fade show" id="batchModal" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>

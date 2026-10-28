@@ -4680,7 +4680,14 @@ const AddPurchase = () => {
                                 borderTopRightRadius: '0.5rem'
                             }}
                         >
-                            <div className="modal-header py-0">
+                            <div className="modal-header py-0"
+                                style={{
+                                    position: 'sticky',
+                                    top: 0,
+                                    zIndex: 2,
+                                    backgroundColor: 'white' // Add background so content doesn't show through
+                                }}
+                            >
                                 <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>Select Item</h5>
                                 <div className="d-flex align-items-center" style={{ flex: 1, marginLeft: '10px' }}>
                                     <div className="position-relative" style={{ width: '100%' }}>
@@ -4692,6 +4699,11 @@ const AddPurchase = () => {
                                             value={headerSearchQuery}
                                             onChange={handleHeaderItemSearch}
                                             autoFocus
+                                            onFocus={() => {
+                                                // ADD THIS BLOCK TO RESET ROW FOCUS
+                                                setHighlightedRowIndex(-1);
+                                                document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+                                            }}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'ArrowDown') {
                                                     e.preventDefault();
@@ -4760,15 +4772,17 @@ const AddPurchase = () => {
                                 ></button>
                             </div>
 
-                            <div className="modal-body p-0">
-                                <div style={{ height: 'calc(55vh - 120px)' }}>
+                            <div className="modal-body p-0" style={{ overflow: 'hidden' }}>
+                                <div style={{ height: 'calc(55vh - 120px)', display: 'flex', flexDirection: 'column' }}>
                                     <div
                                         id="dropdownMenu"
                                         className="w-100 h-100"
                                         style={{
                                             border: '1px solid #dee2e6',
                                             borderRadius: '0.25rem',
-                                            overflow: 'hidden'
+                                            overflowY: 'auto', // <-- CHANGE THIS from 'hidden' to 'auto'
+                                            display: 'flex',
+                                            flexDirection: 'column'
                                         }}
                                     >
                                         <div className="dropdown-header" style={{

@@ -205,6 +205,19 @@ const isValidNepaliDateEnhanced = (dateStr) => {
     }
 };
 
+// Return-line CC: applies only when bonus > 0 on THIS return.
+// Uses puPrice (return-line), NOT mainUnitPuPrice.
+const calculateReturnCcAmount = (puPrice, ccPercentage, bonusQty) => {
+    const p = parseFloat(puPrice) || 0;
+    const c = parseFloat(ccPercentage) || 0;
+    const b = parseFloat(bonusQty) || 0;
+
+    if (b <= 0 || p <= 0 || c <= 0) return 0;
+
+    const raw = (p * c / 100) * b;
+    return Math.round(raw * 100) / 100;
+};
+
 const AddPurcRtn = () => {
     const navigate = useNavigate();
     // Add this state for date format toggle
@@ -241,7 +254,7 @@ const AddPurcRtn = () => {
         batchStockMap: new Map(),
         usedStockMap: new Map(),
     });
-
+    const [headerBonusError, setHeaderBonusError] = useState('');
     const [printAfterSave, setPrintAfterSave] = useState(
         localStorage.getItem('printAfterSavePurchaseReturn') === 'true' || false
     );
@@ -290,7 +303,7 @@ const AddPurcRtn = () => {
     const [hasMoreHeaderSearchResults, setHasMoreHeaderSearchResults] = useState(false);
     const [totalHeaderSearchItems, setTotalHeaderSearchItems] = useState(0);
     const debouncedHeaderSearchQuery = useDebounce(headerSearchQuery, 50);
-
+    const [selectedItemBonus, setSelectedItemBonus] = useState(0);
     const [transactionSettings, setTransactionSettings] = useState({
         displayTransactions: false,
         displayTransactionsForPurchase: false,
@@ -345,6 +358,17 @@ const AddPurcRtn = () => {
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [selectedItemForBatch, setSelectedItemForBatch] = useState(null);
     const [batchModalContent, setBatchModalContent] = useState('');
+
+    // CC charge modal state
+    const [showCcModal, setShowCcModal] = useState(false);
+    const [ccModalData, setCcModalData] = useState({
+        ccPercentage: 0,       // editable
+        bonus: 0,              // the return-line bonus qty
+        puPrice: 0,            // return-line puPrice
+        itemCcAmount: 0,       // auto-computed
+        itemName: '',
+        fromStockEntry: 0      // the original CC% (for display/reference)
+    });
 
     const accountSearchRef = useRef(null);
     const itemSearchRef = useRef(null);
@@ -1022,15 +1046,30 @@ const AddPurcRtn = () => {
         fetchAccountsFromBackend('', 1);
     };
 
-    const calculateUsedStock = (items) => {
+    // const calculateUsedStock = (items) => {
+    //     const newUsedStockMap = new Map();
+
+    //     items.forEach(item => {
+    //         const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+    //         const currentUsed = newUsedStockMap.get(batchKey) || 0;
+    //         const itemQuantity = parseFloat(item.quantity) || 0;
+
+    //         newUsedStockMap.set(batchKey, currentUsed + itemQuantity);
+    //     });
+
+    //     return newUsedStockMap;
+    // };
+
+    const calculateUsedStock = (itemsToCheck) => {
         const newUsedStockMap = new Map();
 
-        items.forEach(item => {
+        itemsToCheck.forEach(item => {
             const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
             const currentUsed = newUsedStockMap.get(batchKey) || 0;
-            const itemQuantity = parseFloat(item.quantity) || 0;
+            const qty = parseFloat(item.quantity) || 0;
+            const bonus = parseFloat(item.bonus) || 0;
 
-            newUsedStockMap.set(batchKey, currentUsed + itemQuantity);
+            newUsedStockMap.set(batchKey, currentUsed + qty + bonus);
         });
 
         return newUsedStockMap;
@@ -1203,6 +1242,101 @@ const AddPurcRtn = () => {
         }, 100);
     };
 
+    // Opens the CC modal only when bonus > 0 on this return line.
+    // Default CC% comes from the stock entry if it had one, else 0.
+    // const openCcModalIfBonusSelected = () => {
+    //     const bonus = parseFloat(selectedItemBonus) || 0;
+
+    //     if (bonus <= 0) {
+    //         // No bonus — skip CC entirely, jump to Rate field
+    //         const rateInput = document.getElementById('selectedItemRate');
+    //         if (rateInput) {
+    //             rateInput.focus();
+    //             rateInput.select();
+    //         }
+    //         return;
+    //     }
+
+    //     const stockCcPercent = selectedItemForInsert?.batchInfo?.ccPercentage || 0;
+    //     const defaultCcPercent = stockCcPercent > 0 ? stockCcPercent : 0;
+
+    //     const puPrice = parseFloat(selectedItemRate) || 0;
+    //     const itemCcAmount = calculateReturnCcAmount(puPrice, defaultCcPercent, bonus);
+
+    //     setCcModalData({
+    //         ccPercentage: defaultCcPercent,
+    //         bonus,
+    //         puPrice,
+    //         itemCcAmount,
+    //         itemName: selectedItemForInsert?.name || '',
+    //         fromStockEntry: stockCcPercent
+    //     });
+
+    //     setShowCcModal(true);
+    // };
+
+    const openCcModalIfBonusSelected = () => {
+        const bonus = parseFloat(selectedItemBonus) || 0;
+
+        if (bonus <= 0) {
+            // No bonus — skip CC entirely, go to Insert button
+            const insertBtn = document.getElementById('insertButton');
+            if (insertBtn) {
+                insertBtn.focus();
+            }
+            return;
+        }
+
+        const stockCcPercent = selectedItemForInsert?.batchInfo?.ccPercentage || 0;
+        const defaultCcPercent = stockCcPercent > 0 ? stockCcPercent : 0;
+
+        const puPrice = parseFloat(selectedItemRate) || 0;
+        const itemCcAmount = calculateReturnCcAmount(puPrice, defaultCcPercent, bonus);
+
+        setCcModalData({
+            ccPercentage: defaultCcPercent,
+            bonus,
+            puPrice,
+            itemCcAmount,
+            itemName: selectedItemForInsert?.name || '',
+            fromStockEntry: stockCcPercent
+        });
+
+        setShowCcModal(true);
+    };
+
+    // Returns { ok: boolean, available, used, requested } for the header row
+    const getHeaderRowStockInfo = () => {
+        if (!selectedItemForInsert?.batchInfo) {
+            return { ok: true, available: 0, used: 0, requested: 0 };
+        }
+
+        const batchNumber = selectedItemBatchNumber || selectedItemForInsert.batchInfo.batchNumber;
+        const uniqueUuid = selectedItemForInsert.batchInfo.uniqueUuid;
+
+        const batchKey = `${selectedItemForInsert.id}-${batchNumber}-${uniqueUuid}`;
+        const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+
+        // Already committed to this batch (including bonus of existing rows)
+        const used = getUsedStockForBatch(selectedItemForInsert.id, batchNumber, uniqueUuid);
+
+        const qty = parseFloat(selectedItemQuantity) || 0;
+        const bonus = parseFloat(selectedItemBonus) || 0;
+        const requested = qty + bonus;
+
+        const available = totalStock - used;
+
+        return {
+            ok: requested <= available,
+            available,
+            used,
+            totalStock,
+            requested,
+            qty,
+            bonus
+        };
+    };
+
     const formatDateForInput = (date) => {
         if (!date) return '';
 
@@ -1276,6 +1410,7 @@ const AddPurcRtn = () => {
             batchNumber: batchInfo.batchNumber || '',
             expiryDate: batchInfo.expiryDate ? new Date(batchInfo.expiryDate).toISOString().split('T')[0] : '',
             quantity: 0,
+            bonus: 0,
             unitId: item.unit?.id || item.unitId, // Use unitId for ASP.NET
             unitName: item.unit?.name || item.unitName,
             price: Math.round(batchInfo.price * 100) / 100 || 0,
@@ -1284,10 +1419,11 @@ const AddPurcRtn = () => {
             amount: 0,
             vatStatus: item.vatStatus,
             uniqueUuid: batchInfo.uniqueUuid,
-            ccPercentage: ccPercentage,
-            mainUnitPuPrice: mainUnitPuPrice,
-            billQty: billQty,
-            actualQty: actualQty,
+            ccPercentage: 0,
+            itemCcAmount: 0,
+            // mainUnitPuPrice: mainUnitPuPrice,
+            // billQty: billQty,
+            // actualQty: actualQty,
             itemCcAmount: calculatedCcAmount  // This will be updated when quantity changes
         };
 
@@ -1383,6 +1519,7 @@ const AddPurcRtn = () => {
 
         setSelectedItemBatchNumber('');
         setSelectedItemExpiryDate('');
+        setSelectedItemBonus(0);
         setSelectedItemRate(item.latestPrice || 0);
 
         setTimeout(() => {
@@ -1416,6 +1553,7 @@ const AddPurcRtn = () => {
                 setSelectedItemForInsert(null);
                 setSelectedItemBatchNumber('');
                 setSelectedItemExpiryDate('');
+                setSelectedItemBonus(0);
                 setSelectedItemRate(0);
 
                 setTimeout(() => {
@@ -1497,6 +1635,252 @@ const AddPurcRtn = () => {
         }
     };
 
+    // const insertSelectedItem = () => {
+    //     if (showTransactionModal) {
+    //         setShowTransactionModal(false);
+    //     }
+
+    //     const batchNumber = selectedItemBatchNumber || selectedItemForInsert?.batchInfo?.batchNumber;
+    //     const expiryDate = selectedItemExpiryDate || selectedItemForInsert?.batchInfo?.expiryDate;
+    //     const uniqueUuid = selectedItemForInsert?.batchInfo?.uniqueUuid;
+
+    //     if (!selectedItemForInsert || !batchNumber) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please enter batch information first',
+    //             type: 'error'
+    //         });
+    //         return;
+    //     }
+
+    //     const batchKey = `${selectedItemForInsert.id}-${batchNumber}-${selectedItemForInsert.batchInfo?.uniqueUuid}`;
+    //     const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+
+    //     const existingItems = items.filter(item =>
+    //         item.itemId === selectedItemForInsert.id &&
+    //         item.batchNumber === batchNumber &&
+    //         item.uniqueUuid === uniqueUuid
+    //     );
+
+    //     let totalExistingQuantity = 0;
+    //     if (existingItems.length > 0) {
+    //         totalExistingQuantity = existingItems.reduce((sum, item) => {
+    //             return sum + (parseFloat(item.quantity) || 0);
+    //         }, 0);
+    //     }
+
+    //     const availableStock = totalStock - totalExistingQuantity;
+
+    //     if (selectedItemQuantity > availableStock) {
+    //         setNotification({
+    //             show: true,
+    //             message: `Insufficient stock. Total: ${totalStock}, Used: ${totalExistingQuantity}, Available: ${availableStock}`,
+    //             type: 'error'
+    //         });
+    //         document.getElementById('selectedItemQuantity')?.focus();
+    //         return;
+    //     }
+
+    //     if (!selectedItemQuantity || selectedItemQuantity <= 0) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please enter a valid quantity',
+    //             type: 'error'
+    //         });
+    //         document.getElementById('selectedItemQuantity')?.focus();
+    //         return;
+    //     }
+
+    //     const billQty = (selectedItemForInsert.batchInfo?.billQty && selectedItemForInsert.batchInfo?.billQty > 0)
+    //         ? selectedItemForInsert.batchInfo?.billQty
+    //         : selectedItemQuantity;
+    //     const mainUnitPuPrice = (selectedItemForInsert.batchInfo?.mainUnitPuPrice && selectedItemForInsert.batchInfo?.mainUnitPuPrice > 0)
+    //         ? selectedItemForInsert.batchInfo?.mainUnitPuPrice
+    //         : selectedItemRate || 0;
+    //     const ccPercentage = selectedItemForInsert.batchInfo?.ccPercentage || 0;
+    //     const actualQty = (selectedItemForInsert.batchInfo?.actualQty && selectedItemForInsert.batchInfo?.actualQty > 0)
+    //         ? selectedItemForInsert.batchInfo?.actualQty
+    //         : 1;
+    //     const returnQuantity = selectedItemQuantity;
+
+    //     let calculatedCcAmount = 0;
+    //     if (ccPercentage > 0 && mainUnitPuPrice > 0 && returnQuantity > 0 && actualQty > 0 && billQty > 0) {
+    //         // CORRECT FORMULA: (billQty × mainUnitPuPrice × ccPercentage × returnQuantity) / (100 × actualQty)
+    //         calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
+    //         calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
+    //     }
+
+    //     const newItem = {
+    //         itemId: selectedItemForInsert.id,
+    //         uniqueNumber: selectedItemForInsert.uniqueNumber || 'N/A',
+    //         hscode: selectedItemForInsert.hscode,
+    //         name: selectedItemForInsert.name,
+    //         category: selectedItemForInsert.category?.name || 'No Category',
+    //         batchNumber: batchNumber,
+    //         expiryDate: expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : '',
+    //         quantity: selectedItemQuantity || 0,
+    //         unitId: selectedItemForInsert.unit?.id || selectedItemForInsert.unitId,
+    //         unitName: selectedItemForInsert.unit?.name || selectedItemForInsert.unitName,
+    //         price: selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100,
+    //         puPrice: selectedItemRate || selectedItemForInsert.batchInfo?.netPuPrice || 0,
+    //         netPuPrice: selectedItemForInsert.batchInfo?.netPuPrice || 0,
+    //         amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.puPrice * 100) / 100),
+    //         vatStatus: selectedItemForInsert.vatStatus,
+    //         uniqueUuid: uniqueUuid,
+    //         ccPercentage: ccPercentage,
+    //         mainUnitPuPrice: mainUnitPuPrice,
+    //         billQty: billQty,
+    //         actualQty: actualQty,
+    //         itemCcAmount: calculatedCcAmount
+    //     };
+
+    //     const updatedItems = [...items, newItem];
+    //     setItems(updatedItems);
+
+    //     setSelectedItemForInsert(null);
+    //     setSelectedItemQuantity(0);
+    //     setSelectedItemBonus(0);
+    //     setSelectedItemRate(0);
+    //     setSelectedItemBatchNumber('');
+    //     setSelectedItemExpiryDate('');
+    //     setHeaderQuantityError('');
+    //     setHeaderSearchQuery('');
+
+    //     setTimeout(() => {
+    //         const searchInput = document.getElementById('headerItemSearch');
+    //         if (searchInput) {
+    //             searchInput.focus();
+    //             searchInput.select();
+    //         }
+    //     }, 50);
+
+    //     setTimeout(() => {
+    //         if (itemsTableRef.current) {
+    //             itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
+    //         }
+    //     }, 50);
+
+    //     setTimeout(() => {
+    //         validateAllQuantities(updatedItems);
+    //     }, 0);
+    // };
+
+    // const insertSelectedItem = () => {
+    //     if (showTransactionModal) {
+    //         setShowTransactionModal(false);
+    //     }
+
+    //     const batchNumber = selectedItemBatchNumber || selectedItemForInsert?.batchInfo?.batchNumber;
+    //     const expiryDate = selectedItemExpiryDate || selectedItemForInsert?.batchInfo?.expiryDate;
+    //     const uniqueUuid = selectedItemForInsert?.batchInfo?.uniqueUuid;
+
+    //     if (!selectedItemForInsert || !batchNumber) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please enter batch information first',
+    //             type: 'error'
+    //         });
+    //         return;
+    //     }
+
+    //     const batchKey = `${selectedItemForInsert.id}-${batchNumber}-${uniqueUuid}`;
+    //     const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+
+    //     const existingItems = items.filter(item =>
+    //         item.itemId === selectedItemForInsert.id &&
+    //         item.batchNumber === batchNumber &&
+    //         item.uniqueUuid === uniqueUuid
+    //     );
+
+    //     let totalExistingQuantity = 0;
+    //     if (existingItems.length > 0) {
+    //         totalExistingQuantity = existingItems.reduce((sum, item) =>
+    //             sum + (parseFloat(item.quantity) || 0), 0);
+    //     }
+
+    //     const availableStock = totalStock - totalExistingQuantity;
+
+    //     if (selectedItemQuantity > availableStock) {
+    //         setNotification({
+    //             show: true,
+    //             message: `Insufficient stock. Total: ${totalStock}, Used: ${totalExistingQuantity}, Available: ${availableStock}`,
+    //             type: 'error'
+    //         });
+    //         document.getElementById('selectedItemQuantity')?.focus();
+    //         return;
+    //     }
+
+    //     if (!selectedItemQuantity || selectedItemQuantity <= 0) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please enter a valid quantity',
+    //             type: 'error'
+    //         });
+    //         document.getElementById('selectedItemQuantity')?.focus();
+    //         return;
+    //     }
+
+    //     // Bonus + CC come from user input / CC modal
+    //     const returnBonus = parseFloat(selectedItemBonus) || 0;
+    //     const ccPercentage = returnBonus > 0 ? (ccModalData.ccPercentage || 0) : 0;
+    //     const itemCcAmount = returnBonus > 0
+    //         ? calculateReturnCcAmount(selectedItemRate, ccPercentage, returnBonus)
+    //         : 0;
+
+    //     const newItem = {
+    //         itemId: selectedItemForInsert.id,
+    //         uniqueNumber: selectedItemForInsert.uniqueNumber || 'N/A',
+    //         hscode: selectedItemForInsert.hscode,
+    //         name: selectedItemForInsert.name,
+    //         category: selectedItemForInsert.category?.name || 'No Category',
+    //         batchNumber: batchNumber,
+    //         expiryDate: expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : '',
+    //         quantity: selectedItemQuantity || 0,
+    //         bonus: returnBonus,
+    //         unitId: selectedItemForInsert.unit?.id || selectedItemForInsert.unitId,
+    //         unitName: selectedItemForInsert.unit?.name || selectedItemForInsert.unitName,
+    //         price: selectedItemRate || Math.round((selectedItemForInsert.batchInfo?.price || 0) * 100) / 100,
+    //         puPrice: selectedItemRate || selectedItemForInsert.batchInfo?.netPuPrice || 0,
+    //         netPuPrice: selectedItemForInsert.batchInfo?.netPuPrice || 0,
+    //         amount: (selectedItemQuantity || 0) * (selectedItemRate || 0),
+    //         vatStatus: selectedItemForInsert.vatStatus,
+    //         uniqueUuid: uniqueUuid,
+    //         ccPercentage: ccPercentage,
+    //         itemCcAmount: itemCcAmount
+    //     };
+
+    //     const updatedItems = [...items, newItem];
+    //     setItems(updatedItems);
+
+    //     setSelectedItemForInsert(null);
+    //     setSelectedItemQuantity(0);
+    //     setSelectedItemRate(0);
+    //     setSelectedItemBonus(0);
+    //     setSelectedItemBatchNumber('');
+    //     setSelectedItemExpiryDate('');
+    //     setHeaderQuantityError('');
+    //     setHeaderBonusError('');
+    //     setHeaderSearchQuery('');
+
+    //     setTimeout(() => {
+    //         const searchInput = document.getElementById('headerItemSearch');
+    //         if (searchInput) {
+    //             searchInput.focus();
+    //             searchInput.select();
+    //         }
+    //     }, 50);
+
+    //     setTimeout(() => {
+    //         if (itemsTableRef.current) {
+    //             itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
+    //         }
+    //     }, 50);
+
+    //     setTimeout(() => {
+    //         validateAllQuantities(updatedItems);
+    //     }, 0);
+    // };
+
     const insertSelectedItem = () => {
         if (showTransactionModal) {
             setShowTransactionModal(false);
@@ -1515,34 +1899,7 @@ const AddPurcRtn = () => {
             return;
         }
 
-        const batchKey = `${selectedItemForInsert.id}-${batchNumber}-${selectedItemForInsert.batchInfo?.uniqueUuid}`;
-        const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
-
-        const existingItems = items.filter(item =>
-            item.itemId === selectedItemForInsert.id &&
-            item.batchNumber === batchNumber &&
-            item.uniqueUuid === uniqueUuid
-        );
-
-        let totalExistingQuantity = 0;
-        if (existingItems.length > 0) {
-            totalExistingQuantity = existingItems.reduce((sum, item) => {
-                return sum + (parseFloat(item.quantity) || 0);
-            }, 0);
-        }
-
-        const availableStock = totalStock - totalExistingQuantity;
-
-        if (selectedItemQuantity > availableStock) {
-            setNotification({
-                show: true,
-                message: `Insufficient stock. Total: ${totalStock}, Used: ${totalExistingQuantity}, Available: ${availableStock}`,
-                type: 'error'
-            });
-            document.getElementById('selectedItemQuantity')?.focus();
-            return;
-        }
-
+        // ---- 1. Quantity must be > 0 ----
         if (!selectedItemQuantity || selectedItemQuantity <= 0) {
             setNotification({
                 show: true,
@@ -1553,24 +1910,39 @@ const AddPurcRtn = () => {
             return;
         }
 
-        const billQty = (selectedItemForInsert.batchInfo?.billQty && selectedItemForInsert.batchInfo?.billQty > 0)
-            ? selectedItemForInsert.batchInfo?.billQty
-            : selectedItemQuantity;
-        const mainUnitPuPrice = (selectedItemForInsert.batchInfo?.mainUnitPuPrice && selectedItemForInsert.batchInfo?.mainUnitPuPrice > 0)
-            ? selectedItemForInsert.batchInfo?.mainUnitPuPrice
-            : selectedItemRate || 0;
-        const ccPercentage = selectedItemForInsert.batchInfo?.ccPercentage || 0;
-        const actualQty = (selectedItemForInsert.batchInfo?.actualQty && selectedItemForInsert.batchInfo?.actualQty > 0)
-            ? selectedItemForInsert.batchInfo?.actualQty
-            : 1;
-        const returnQuantity = selectedItemQuantity;
+        // ---- 2. qty + bonus stock check (THE FIX) ----
+        const returnBonus = parseFloat(selectedItemBonus) || 0;
+        const requestedTotal = (parseFloat(selectedItemQuantity) || 0) + returnBonus;
 
-        let calculatedCcAmount = 0;
-        if (ccPercentage > 0 && mainUnitPuPrice > 0 && returnQuantity > 0 && actualQty > 0 && billQty > 0) {
-            // CORRECT FORMULA: (billQty × mainUnitPuPrice × ccPercentage × returnQuantity) / (100 × actualQty)
-            calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
-            calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
+        const batchKey = `${selectedItemForInsert.id}-${batchNumber}-${uniqueUuid}`;
+        const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+        const alreadyUsed = getUsedStockForBatch(selectedItemForInsert.id, batchNumber, uniqueUuid);
+        const availableStock = totalStock - alreadyUsed;
+
+        if (requestedTotal > availableStock) {
+            // const msg = `Stock exceeded. Available: ${availableStock}, Requested (Qty ${selectedItemQuantity} + Bonus ${returnBonus}): ${requestedTotal}`;
+            // setHeaderQuantityError(msg);
+            // setNotification({
+            //     show: true,
+            //     message: msg,
+            //     type: 'error'
+            // });
+            setNotification({
+                show: true,
+                message: `Stock exceeded. Available: ${available}, Requested: ${requested}`,
+                type: 'warning'
+            });
+
+            document.getElementById('selectedItemQuantity')?.focus();
+            document.getElementById('selectedItemQuantity')?.select();
+            return;
         }
+
+        // ---- 3. Build the item ----
+        const ccPercentage = returnBonus > 0 ? (ccModalData.ccPercentage || 0) : 0;
+        const itemCcAmount = returnBonus > 0
+            ? calculateReturnCcAmount(selectedItemRate, ccPercentage, returnBonus)
+            : 0;
 
         const newItem = {
             itemId: selectedItemForInsert.id,
@@ -1581,31 +1953,40 @@ const AddPurcRtn = () => {
             batchNumber: batchNumber,
             expiryDate: expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : '',
             quantity: selectedItemQuantity || 0,
+            bonus: returnBonus,
             unitId: selectedItemForInsert.unit?.id || selectedItemForInsert.unitId,
             unitName: selectedItemForInsert.unit?.name || selectedItemForInsert.unitName,
-            price: selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.price * 100) / 100,
+            price: selectedItemRate || Math.round((selectedItemForInsert.batchInfo?.price || 0) * 100) / 100,
             puPrice: selectedItemRate || selectedItemForInsert.batchInfo?.netPuPrice || 0,
             netPuPrice: selectedItemForInsert.batchInfo?.netPuPrice || 0,
-            amount: (selectedItemQuantity || 0) * (selectedItemRate || Math.round(selectedItemForInsert.batchInfo?.puPrice * 100) / 100),
+            amount: (selectedItemQuantity || 0) * (selectedItemRate || 0),
             vatStatus: selectedItemForInsert.vatStatus,
             uniqueUuid: uniqueUuid,
             ccPercentage: ccPercentage,
-            mainUnitPuPrice: mainUnitPuPrice,
-            billQty: billQty,
-            actualQty: actualQty,
-            itemCcAmount: calculatedCcAmount
+            itemCcAmount: itemCcAmount
         };
 
         const updatedItems = [...items, newItem];
         setItems(updatedItems);
 
+        // ---- 4. Reset header row state ----
         setSelectedItemForInsert(null);
         setSelectedItemQuantity(0);
         setSelectedItemRate(0);
+        setSelectedItemBonus(0);
         setSelectedItemBatchNumber('');
         setSelectedItemExpiryDate('');
         setHeaderQuantityError('');
+        setHeaderBonusError('');
         setHeaderSearchQuery('');
+        setCcModalData({
+            ccPercentage: 0,
+            bonus: 0,
+            puPrice: 0,
+            itemCcAmount: 0,
+            itemName: '',
+            fromStockEntry: 0
+        });
 
         setTimeout(() => {
             const searchInput = document.getElementById('headerItemSearch');
@@ -1626,42 +2007,120 @@ const AddPurcRtn = () => {
         }, 0);
     };
 
+    // const updateItemField = (index, field, value) => {
+    //     const updatedItems = [...items];
+    //     updatedItems[index][field] = value;
+
+    //     if (field === 'quantity' || field === 'puPrice') {
+    //         if (field === 'quantity') {
+    //             const item = updatedItems[index];
+    //             const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
+
+    //             const returnQuantity = parseFloat(value) || 0;
+    //             // FIX: Use proper defaults - if billQty/actualQty is 0, use returnQuantity as fallback
+    //             const billQty = (item.billQty && item.billQty > 0) ? item.billQty : returnQuantity;
+    //             const mainUnitPuPrice = (item.mainUnitPuPrice && item.mainUnitPuPrice > 0) ? item.mainUnitPuPrice : item.puPrice || 0;
+    //             const ccPercentage = item.ccPercentage || 0;
+    //             const actualQty = (item.actualQty && item.actualQty > 0) ? item.actualQty : 1;
+
+    //             let calculatedCcAmount = 0;
+    //             if (ccPercentage > 0 && mainUnitPuPrice > 0 && returnQuantity > 0 && actualQty > 0) {
+    //                 // CORRECT FORMULA: (billQty × mainUnitPuPrice × ccPercentage × returnQuantity) / (100 × actualQty)
+    //                 calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
+    //                 calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
+    //             }
+
+    //             updatedItems[index].itemCcAmount = calculatedCcAmount;
+
+    //             // Log for debugging
+    //             console.log(`CC Calculation for ${item.name}:`, {
+    //                 returnQuantity,
+    //                 billQty,
+    //                 mainUnitPuPrice,
+    //                 ccPercentage,
+    //                 actualQty,
+    //                 totalCcForBatch: (billQty * mainUnitPuPrice * ccPercentage) / 100,
+    //                 calculatedCcAmount
+    //             });
+
+
+    //             if (stockValidation.batchStockMap.has(batchKey)) {
+    //                 const isValid = validateQuantity(index, value, updatedItems);
+    //                 const remainingStock = getRemainingStock(item, updatedItems);
+    //                 const availableStock = getAvailableStockForDisplay(item);
+
+    //                 if (!isValid) {
+    //                     setQuantityErrors(prev => ({
+    //                         ...prev,
+    //                         [index]: `Stock: ${availableStock} | Rem.: ${remainingStock}`
+    //                     }));
+    //                 } else {
+    //                     setQuantityErrors(prev => {
+    //                         const newErrors = { ...prev };
+    //                         delete newErrors[index];
+    //                         return newErrors;
+    //                     });
+    //                 }
+    //             }
+    //         }
+
+    //         updatedItems[index].amount = (updatedItems[index].quantity * updatedItems[index].puPrice).toFixed(2);
+    //     }
+
+    //     setItems(updatedItems);
+
+    //     if (formData.discountPercentage || formData.discountAmount) {
+    //         const subTotal = calculateTotal(updatedItems).subTotal;
+
+    //         if (formData.discountPercentage) {
+    //             const discountAmount = (subTotal * formData.discountPercentage) / 100;
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 discountAmount: discountAmount.toFixed(2)
+    //             }));
+    //         } else if (formData.discountAmount) {
+    //             const discountPercentage = subTotal > 0 ? (formData.discountAmount / subTotal) * 100 : 0;
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 discountPercentage: discountPercentage.toFixed(2)
+    //             }));
+    //         }
+    //     }
+    // };
+
     const updateItemField = (index, field, value) => {
         const updatedItems = [...items];
         updatedItems[index][field] = value;
 
+        if (field === 'bonus') {
+            // Bonus changed — recompute CC if bonus > 0, else force 0
+            const bonus = parseFloat(value) || 0;
+            const ccPercentage = updatedItems[index].ccPercentage || 0;
+            const puPrice = updatedItems[index].puPrice || 0;
+
+            updatedItems[index].itemCcAmount = bonus > 0
+                ? calculateReturnCcAmount(puPrice, ccPercentage, bonus)
+                : 0;
+        }
+
         if (field === 'quantity' || field === 'puPrice') {
+            // Recalculate amount
+            updatedItems[index].amount =
+                ((updatedItems[index].quantity || 0) * (updatedItems[index].puPrice || 0)).toFixed(2);
+
+            // If bonus > 0, CC depends on puPrice → recompute
+            const bonus = parseFloat(updatedItems[index].bonus) || 0;
+            if (bonus > 0) {
+                updatedItems[index].itemCcAmount = calculateReturnCcAmount(
+                    updatedItems[index].puPrice,
+                    updatedItems[index].ccPercentage,
+                    bonus
+                );
+            }
+
             if (field === 'quantity') {
                 const item = updatedItems[index];
                 const batchKey = `${item.itemId}-${item.batchNumber}-${item.uniqueUuid}`;
-
-                const returnQuantity = parseFloat(value) || 0;
-                // FIX: Use proper defaults - if billQty/actualQty is 0, use returnQuantity as fallback
-                const billQty = (item.billQty && item.billQty > 0) ? item.billQty : returnQuantity;
-                const mainUnitPuPrice = (item.mainUnitPuPrice && item.mainUnitPuPrice > 0) ? item.mainUnitPuPrice : item.puPrice || 0;
-                const ccPercentage = item.ccPercentage || 0;
-                const actualQty = (item.actualQty && item.actualQty > 0) ? item.actualQty : 1;
-
-                let calculatedCcAmount = 0;
-                if (ccPercentage > 0 && mainUnitPuPrice > 0 && returnQuantity > 0 && actualQty > 0) {
-                    // CORRECT FORMULA: (billQty × mainUnitPuPrice × ccPercentage × returnQuantity) / (100 × actualQty)
-                    calculatedCcAmount = (billQty * mainUnitPuPrice * ccPercentage * returnQuantity) / (100 * actualQty);
-                    calculatedCcAmount = Math.round(calculatedCcAmount * 100) / 100;
-                }
-
-                updatedItems[index].itemCcAmount = calculatedCcAmount;
-
-                // Log for debugging
-                console.log(`CC Calculation for ${item.name}:`, {
-                    returnQuantity,
-                    billQty,
-                    mainUnitPuPrice,
-                    ccPercentage,
-                    actualQty,
-                    totalCcForBatch: (billQty * mainUnitPuPrice * ccPercentage) / 100,
-                    calculatedCcAmount
-                });
-
 
                 if (stockValidation.batchStockMap.has(batchKey)) {
                     const isValid = validateQuantity(index, value, updatedItems);
@@ -1682,8 +2141,6 @@ const AddPurcRtn = () => {
                     }
                 }
             }
-
-            updatedItems[index].amount = (updatedItems[index].quantity * updatedItems[index].puPrice).toFixed(2);
         }
 
         setItems(updatedItems);
@@ -2382,6 +2839,7 @@ const AddPurcRtn = () => {
                     batchNumber: item.batchNumber,
                     expiryDate: item.expiryDate,
                     quantity: item.quantity,
+                    bonus: item.bonus || 0,
                     unitId: item.unitId,
                     price: item.price,
                     puPrice: item.puPrice,
@@ -2782,6 +3240,18 @@ const AddPurcRtn = () => {
         }
     };
 
+    // const getUsedStockForBatch = (itemId, batchNumber, uniqueUuid) => {
+    //     if (!itemId || !batchNumber) return 0;
+
+    //     const batchItems = items.filter(item =>
+    //         item.itemId === itemId &&
+    //         item.batchNumber === batchNumber &&
+    //         (!uniqueUuid || item.uniqueUuid === uniqueUuid)
+    //     );
+
+    //     return batchItems.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+    // };
+
     const getUsedStockForBatch = (itemId, batchNumber, uniqueUuid) => {
         if (!itemId || !batchNumber) return 0;
 
@@ -2791,7 +3261,13 @@ const AddPurcRtn = () => {
             (!uniqueUuid || item.uniqueUuid === uniqueUuid)
         );
 
-        return batchItems.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+        return batchItems.reduce(
+            (sum, item) =>
+                sum +
+                (parseFloat(item.quantity) || 0) +
+                (parseFloat(item.bonus) || 0),
+            0
+        );
     };
 
     const formatter = new Intl.NumberFormat('en-IN', {
@@ -3898,36 +4374,72 @@ const AddPurcRtn = () => {
                                                 placeholder="Qty"
                                                 id='selectedItemQuantity'
                                                 value={selectedItemQuantity}
+                                                // onChange={(e) => {
+                                                //     const value = parseFloat(e.target.value) || 0;
+                                                //     setSelectedItemQuantity(value);
+
+                                                //     if (selectedItemForInsert && selectedItemForInsert.batchInfo) {
+                                                //         const batchKey = `${selectedItemForInsert.id}-${selectedItemForInsert.batchInfo.batchNumber}-${selectedItemForInsert.batchInfo.uniqueUuid}`;
+                                                //         const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+
+                                                //         const existingItems = items.filter(item =>
+                                                //             item.itemId === selectedItemForInsert.id &&
+                                                //             item.batchNumber === selectedItemForInsert.batchInfo.batchNumber &&
+                                                //             item.uniqueUuid === selectedItemForInsert.batchInfo.uniqueUuid
+                                                //         );
+
+                                                //         let totalExistingQuantity = 0;
+                                                //         if (existingItems.length > 0) {
+                                                //             totalExistingQuantity = existingItems.reduce((sum, item) => {
+                                                //                 return sum + (parseFloat(item.quantity) || 0);
+                                                //             }, 0);
+                                                //         }
+
+                                                //         const availableStock = totalStock - totalExistingQuantity;
+                                                //         const combinedQuantity = totalExistingQuantity + value;
+
+                                                //         if (value > 0 && combinedQuantity > totalStock) {
+                                                //             setNotification({
+                                                //                 show: true,
+                                                //                 message: `Stock exceeded ${combinedQuantity}/${totalStock}`,
+                                                //                 type: 'warning'
+                                                //             });
+                                                //         }
+                                                //     }
+                                                // }}
                                                 onChange={(e) => {
                                                     const value = parseFloat(e.target.value) || 0;
                                                     setSelectedItemQuantity(value);
 
-                                                    if (selectedItemForInsert && selectedItemForInsert.batchInfo) {
-                                                        const batchKey = `${selectedItemForInsert.id}-${selectedItemForInsert.batchInfo.batchNumber}-${selectedItemForInsert.batchInfo.uniqueUuid}`;
-                                                        const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+                                                    if (!selectedItemForInsert?.batchInfo) return;
 
-                                                        const existingItems = items.filter(item =>
-                                                            item.itemId === selectedItemForInsert.id &&
-                                                            item.batchNumber === selectedItemForInsert.batchInfo.batchNumber &&
-                                                            item.uniqueUuid === selectedItemForInsert.batchInfo.uniqueUuid
-                                                        );
+                                                    const batchNumber = selectedItemBatchNumber || selectedItemForInsert.batchInfo.batchNumber;
+                                                    const uniqueUuid = selectedItemForInsert.batchInfo.uniqueUuid;
+                                                    const batchKey = `${selectedItemForInsert.id}-${batchNumber}-${uniqueUuid}`;
+                                                    const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+                                                    const used = getUsedStockForBatch(selectedItemForInsert.id, batchNumber, uniqueUuid);
 
-                                                        let totalExistingQuantity = 0;
-                                                        if (existingItems.length > 0) {
-                                                            totalExistingQuantity = existingItems.reduce((sum, item) => {
-                                                                return sum + (parseFloat(item.quantity) || 0);
-                                                            }, 0);
-                                                        }
+                                                    const bonus = parseFloat(selectedItemBonus) || 0;
+                                                    const available = totalStock - used;
+                                                    const requested = value + bonus;
 
-                                                        const availableStock = totalStock - totalExistingQuantity;
-                                                        const combinedQuantity = totalExistingQuantity + value;
+                                                    if (requested > available) {
+                                                        //     setHeaderQuantityError(
+                                                        //         `Stock exceeded. Available: ${available}, Requested (Qty+Bonus): ${requested}`
+                                                        //     );
+                                                        // } else {
+                                                        //     setHeaderQuantityError('');
+                                                        // }
 
-                                                        if (value > 0 && combinedQuantity > totalStock) {
-                                                            setNotification({
-                                                                show: true,
-                                                                message: `Stock exceeded ${combinedQuantity}/${totalStock}`,
-                                                                type: 'warning'
-                                                            });
+                                                        setNotification({
+                                                            show: true,
+                                                            message: `Stock exceeded Available: ${available}, Requested: ${requested}`,
+                                                            type: 'warning'
+                                                        });
+
+                                                        if (headerBonusError) {
+                                                            const bonusRequested = value + (parseFloat(selectedItemBonus) || 0);
+                                                            if (bonusRequested <= available) setHeaderBonusError('');
                                                         }
                                                     }
                                                 }}
@@ -3935,7 +4447,7 @@ const AddPurcRtn = () => {
                                                 onKeyDown={(e) => {
                                                     if ((e.key === 'Tab' || e.key === 'Enter')) {
                                                         e.preventDefault();
-                                                        document.getElementById('selectedItemRate').focus();
+                                                        document.getElementById('selectedItemBonus').focus();
                                                     }
                                                 }}
                                                 style={{
@@ -3955,6 +4467,60 @@ const AddPurcRtn = () => {
                                                     {headerQuantityError}
                                                 </div>
                                             )}
+                                        </td>
+                                        <td width="8%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+                                            <input
+                                                type="number"
+                                                className="form-control form-control-sm"
+                                                placeholder="Bonus"
+                                                id="selectedItemBonus"
+                                                value={selectedItemBonus}
+                                                // onChange={(e) => setSelectedItemBonus(parseFloat(e.target.value) || 0)}
+                                                onChange={(e) => {
+                                                    const value = parseFloat(e.target.value) || 0;
+                                                    setSelectedItemBonus(value);
+
+                                                    if (!selectedItemForInsert?.batchInfo) return;
+
+                                                    const batchNumber = selectedItemBatchNumber || selectedItemForInsert.batchInfo.batchNumber;
+                                                    const uniqueUuid = selectedItemForInsert.batchInfo.uniqueUuid;
+                                                    const batchKey = `${selectedItemForInsert.id}-${batchNumber}-${uniqueUuid}`;
+                                                    const totalStock = stockValidation.batchStockMap.get(batchKey) || 0;
+                                                    const used = getUsedStockForBatch(selectedItemForInsert.id, batchNumber, uniqueUuid);
+
+                                                    const qty = parseFloat(selectedItemQuantity) || 0;
+                                                    const available = totalStock - used;
+                                                    const requested = qty + value;
+
+                                                    if (requested > available) {
+                                                        //     setHeaderBonusError(
+                                                        //         `Stock exceeded. Available: ${available}, Requested (Qty+Bonus): ${requested}`
+                                                        //     );
+                                                        // } else {
+                                                        //     setHeaderBonusError('');
+                                                        // }
+
+                                                        setNotification({
+                                                            show: true,
+                                                            message: `Stock exceeded Available: ${available}, Requested: ${requested}`,
+                                                            type: 'warning'
+                                                        });
+
+                                                        if (headerQuantityError && requested <= available) {
+                                                            setHeaderQuantityError('');
+                                                        }
+                                                    }
+                                                }}
+                                                onFocus={(e) => e.target.select()}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Tab' || e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        document.getElementById('selectedItemRate').focus();
+                                                        document.getElementById('selectedItemRate').select();
+                                                    }
+                                                }}
+                                                style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px' }}
+                                            />
                                         </td>
                                         <td width="8%" style={{
                                             padding: '2px',
@@ -3976,7 +4542,8 @@ const AddPurcRtn = () => {
                                                 onKeyDown={(e) => {
                                                     if ((e.key === 'Tab' || e.key === 'Enter')) {
                                                         e.preventDefault();
-                                                        document.getElementById('insertButton').focus();
+                                                        // document.getElementById('insertButton').focus();
+                                                        openCcModalIfBonusSelected();
                                                     }
                                                 }}
                                                 style={{
@@ -4039,9 +4606,10 @@ const AddPurcRtn = () => {
                                         <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>#</th>
                                         <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>HSN</th>
                                         <th width="20%" style={{ padding: '3px', fontSize: '0.75rem' }}>Description of Goods</th>
-                                        <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Batch</th>
+                                        <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>Batch</th>
                                         <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Expiry</th>
                                         <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Qty</th>
+                                        <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Bonus</th>
                                         <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Unit</th>
                                         <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Rate</th>
                                         <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Amount</th>
@@ -4149,6 +4717,18 @@ const AddPurcRtn = () => {
                                                             {quantityErrors[index]}
                                                         </div>
                                                     )}
+                                                </td>
+                                                <td style={{ padding: '3px' }}>
+                                                    <input
+                                                        type="number"
+                                                        name={`items[${index}][bonus]`}
+                                                        className="form-control form-control-sm"
+                                                        id={`bonus-${index}`}
+                                                        value={item.bonus || 0}
+                                                        onChange={(e) => updateItemField(index, 'bonus', parseFloat(e.target.value) || 0)}
+                                                        onFocus={(e) => e.target.select()}
+                                                        style={{ height: '20px', fontSize: '0.75rem', padding: '0 4px' }}
+                                                    />
                                                 </td>
                                                 <td className="text-nowrap" style={{ padding: '3px', fontSize: '0.75rem' }}>
                                                     {item.unitName || ''}
@@ -4498,31 +5078,6 @@ const AddPurcRtn = () => {
                                         <td style={{ padding: '1px' }}>
                                             <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.totalAmount)}</p>
                                         </td>
-                                        {/* <td style={{ padding: '1px' }}>
-                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>In Words:</label>
-                                        </td>
-                                        <td style={{ padding: '1px' }}>
-                                            <div
-                                                className="form-control-plaintext mb-0"
-                                                style={{
-                                                    fontSize: '0.7rem',
-                                                    lineHeight: '1.1',
-                                                    maxHeight: '44px',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    display: '-webkit-box',
-                                                    WebkitLineClamp: 2,
-                                                    WebkitBoxOrientation: 'vertical',
-                                                    wordBreak: 'break-word',
-                                                    whiteSpace: 'normal'
-                                                }}
-                                                id="amountInWords"
-                                                title={convertToRupeesAndPaisaNepali(totals.totalAmount) + " Only."}
-                                            >
-                                                {convertToRupeesAndPaisaNepali(totals.totalAmount)} Only.
-                                            </div>
-                                        </td> */}
-
                                         <td colSpan="2" style={{ padding: '1px' }}>
                                             <div
                                                 className="d-flex align-items-start gap-1"
@@ -4648,108 +5203,6 @@ const AddPurcRtn = () => {
                     </form>
                 </div>
             </div>
-
-            {/* Account Modal */}
-            {/* {showAccountModal && (
-                <div
-                    className="modal fade show"
-                    id="accountModal"
-                    tabIndex="-1"
-                    style={{ display: 'block' }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            handleAccountModalClose();
-                            setTimeout(() => {
-                                document.getElementById('address').focus();
-                            }, 0);
-                        }
-                    }}
-                >
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content" style={{ height: '400px' }}>
-                            <div className="modal-header py-1">
-                                <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
-                                    Select an Account
-                                </h5>
-                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
-                                    {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
-                                </small>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={handleAccountModalClose}
-                                    aria-label="Close"
-                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
-                                ></button>
-                            </div>
-                            <div className="p-2 bg-white sticky-top">
-                                <input
-                                    type="text"
-                                    id="searchAccount"
-                                    className="form-control form-control-sm"
-                                    placeholder="Search Account... (Press F6 to create new account)"
-                                    autoFocus
-                                    autoComplete='off'
-                                    value={accountSearchQuery}
-                                    onChange={handleAccountSearch}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                            e.preventDefault();
-                                            const firstAccountItem = document.querySelector('.account-item');
-                                            if (firstAccountItem) {
-                                                firstAccountItem.focus();
-                                            }
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const firstAccountItem = document.querySelector('.account-item.active');
-                                            if (firstAccountItem) {
-                                                const accountId = firstAccountItem.getAttribute('data-account-id');
-                                                const account = accounts.find(a => a.id === accountId);
-                                                if (account) {
-                                                    selectAccount(account);
-                                                    document.getElementById('address').focus();
-                                                }
-                                            }
-                                        } else if (e.key === 'F6') {
-                                            e.preventDefault();
-                                            setShowAccountCreationModal(true);
-                                            handleAccountModalClose();
-                                        }
-                                    }}
-                                    onFocus={() => {
-                                        if (accountLastSearchQuery && !accountSearchQuery && accountShouldShowLastSearchResults) {
-                                        }
-                                    }}
-                                    ref={accountSearchRef}
-                                    style={{
-                                        height: '24px',
-                                        fontSize: '0.75rem',
-                                        padding: '0.25rem 0.5rem'
-                                    }}
-                                />
-                            </div>
-                            <div className="modal-body p-0">
-                                <div style={{ height: 'calc(320px - 40px)' }}>
-                                    <VirtualizedAccountList
-                                        accounts={accounts}
-                                        onAccountClick={(account) => {
-                                            selectAccount(account);
-                                            document.getElementById('address').focus();
-                                        }}
-                                        searchRef={accountSearchRef}
-                                        hasMore={hasMoreAccountResults}
-                                        isSearching={isAccountSearching}
-                                        onLoadMore={loadMoreAccounts}
-                                        totalAccounts={totalAccounts}
-                                        page={accountSearchPage}
-                                        searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )} */}
 
             {/* Account Modal - Using New Component */}
             {showAccountModal && (
@@ -5068,7 +5521,7 @@ const AddPurcRtn = () => {
             )}
 
             {/* Header Item Modal */}
-            {showHeaderItemModal && (
+            {/* {showHeaderItemModal && (
                 <div
                     className="modal fade show"
                     id="headerItemModal"
@@ -5200,6 +5653,208 @@ const AddPurcRtn = () => {
                                         <div className="dropdown-header" style={{
                                             display: 'grid',
                                             // gridTemplateColumns: 'repeat(7, 1fr)',
+                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
+                                            alignItems: 'center',
+                                            padding: '0 8px',
+                                            height: '20px',
+                                            background: '#f0f0f0',
+                                            fontWeight: 'bold',
+                                            borderBottom: '1px solid #dee2e6',
+                                            position: 'sticky',
+                                            top: 0,
+                                            zIndex: 1,
+                                            fontSize: '0.7rem'
+                                        }}>
+                                            <div><strong>#</strong></div>
+                                            <div><strong>HSN</strong></div>
+                                            <div><strong>Description</strong></div>
+                                            <div><strong>Category</strong></div>
+                                            <div><strong>Stock</strong></div>
+                                            <div><strong>Unit</strong></div>
+                                            <div><strong>Rate</strong></div>
+                                        </div>
+
+                                        {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
+                                            <VirtualizedItemListForPurchaseReturn
+                                                items={headerSearchResults}
+                                                onItemClick={(item) => {
+                                                    selectItemForInsert(item);
+                                                    setShowHeaderItemModal(false);
+                                                }}
+                                                searchRef={{ current: document.querySelector('#headerItemModal input[type="text"]') }}
+                                                hasMore={hasMoreHeaderSearchResults}
+                                                isSearching={isHeaderSearching}
+                                                onLoadMore={loadMoreHeaderSearchItems}
+                                                totalItems={totalHeaderSearchItems}
+                                                page={headerSearchPage}
+                                                searchQuery={headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery}
+                                                setNotification={setNotification}
+                                            />
+                                        ) : (
+                                            <div className="text-center py-3 text-muted" style={{ fontSize: '0.75rem' }}>
+                                                {headerSearchQuery ? 'No items found' : 'Type to search items'}
+                                                <div className="small mt-1">
+                                                    <small className="text-info">Press F6 to create a new item</small>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+            {showHeaderItemModal && (
+                <div
+                    className="modal fade show"
+                    id="headerItemModal"
+                    tabIndex="-1"
+                    style={{
+                        display: 'block',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 1050
+                    }}
+                >
+                    <div
+                        className="modal-dialog modal-xl"
+                        style={{
+                            position: 'absolute',
+                            top: 'auto',
+                            bottom: '0',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            margin: '0',
+                            width: '90%',
+                            maxWidth: '90%'
+                        }}
+                    >
+                        <div
+                            className="modal-content"
+                            style={{
+                                height: '35vh',
+                                borderBottomLeftRadius: '0',
+                                borderBottomRightRadius: '0',
+                                borderTopLeftRadius: '0.5rem',
+                                borderTopRightRadius: '0.5rem'
+                            }}
+                        >
+                            {/* 1. STICKY MODAL HEADER */}
+                            <div
+                                className="modal-header py-0"
+                                style={{
+                                    position: 'sticky',
+                                    top: 0,
+                                    zIndex: 2,
+                                    backgroundColor: 'white'
+                                }}
+                            >
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>Select Item</h5>
+                                <div className="d-flex align-items-center" style={{ flex: 1, marginLeft: '10px' }}>
+                                    <div className="position-relative" style={{ width: '100%' }}>
+                                        <input
+                                            type="text"
+                                            className="form-control form-control-sm"
+                                            placeholder="Search items... (Press F6 to create new item)"
+                                            autoComplete='off'
+                                            value={headerSearchQuery}
+                                            onChange={(e) => {
+                                                const query = e.target.value;
+                                                setHeaderSearchQuery(query);
+                                                if (query.trim() !== '' && headerShouldShowLastSearchResults) {
+                                                    setHeaderShouldShowLastSearchResults(false);
+                                                    setHeaderLastSearchQuery('');
+                                                }
+                                            }}
+                                            autoFocus
+                                            onFocus={() => {
+                                                // RESET ROW FOCUS ON INPUT FOCUS
+                                                setHighlightedRowIndex(-1);
+                                                document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowDown') {
+                                                    e.preventDefault();
+                                                    const firstItem = document.querySelector('.dropdown-item');
+                                                    if (firstItem) {
+                                                        firstItem.focus();
+                                                    }
+                                                } else if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const activeItem = document.querySelector('.dropdown-item.active');
+
+                                                    if (activeItem) {
+                                                        const index = parseInt(activeItem.getAttribute('data-index'));
+                                                        const itemToAdd = headerSearchResults[index];
+                                                        if (itemToAdd) {
+                                                            selectItemForInsert(itemToAdd);
+                                                            setShowHeaderItemModal(false);
+                                                        }
+                                                    } else {
+                                                        if (!headerSearchQuery.trim()) {
+                                                            setShowHeaderItemModal(false);
+                                                            setTimeout(() => {
+                                                                const discountInput = document.getElementById('discountPercentage');
+                                                                if (discountInput) {
+                                                                    discountInput.focus();
+                                                                    discountInput.select();
+                                                                }
+                                                            }, 50);
+                                                        }
+                                                    }
+                                                } else if (e.key === 'F6') {
+                                                    e.preventDefault();
+                                                    setShowItemsModal(true);
+                                                    setShowHeaderItemModal(false);
+                                                    setHeaderSearchQuery('');
+                                                    setHeaderShouldShowLastSearchResults(false);
+                                                    setHeaderLastSearchQuery('');
+                                                } else if (e.key === 'Escape') {
+                                                    e.preventDefault();
+                                                    setShowHeaderItemModal(false);
+                                                }
+                                            }}
+                                            style={{
+                                                height: '24px',
+                                                fontSize: '0.75rem',
+                                                padding: '0.25rem 0.5rem',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={handleHeaderItemModalClose}
+                                    aria-label="Close"
+                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
+                                ></button>
+                            </div>
+
+                            {/* 2. SCROLLABLE MODAL BODY */}
+                            <div className="modal-body p-0" style={{ overflow: 'hidden' }}>
+                                <div style={{ height: 'calc(55vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+                                    <div
+                                        id="dropdownMenu"
+                                        className="w-100 h-100"
+                                        style={{
+                                            border: '1px solid #dee2e6',
+                                            borderRadius: '0.25rem',
+                                            overflowY: 'auto', // ENABLE SCROLL INSIDE LIST
+                                            display: 'flex',
+                                            flexDirection: 'column'
+                                        }}
+                                    >
+                                        {/* 3. STICKY COLUMN HEADERS */}
+                                        <div className="dropdown-header" style={{
+                                            display: 'grid',
                                             gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
                                             alignItems: 'center',
                                             padding: '0 8px',
@@ -5564,6 +6219,193 @@ const AddPurcRtn = () => {
                                 >
                                     <i className="bi bi-x-circle me-1"></i>
                                     Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* {showCcModal && (
+                <div className="modal fade show" tabIndex="-1"
+                    style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '420px' }}>
+                        <div className="modal-content">
+                            <div className="modal-header py-1 px-3" style={{ backgroundColor: '#f8f9fa' }}>
+                                <h6 className="modal-title mb-0" style={{ fontSize: '0.9rem' }}>
+                                    CC Charge — {ccModalData.itemName}
+                                </h6>
+                                <button type="button" className="btn-close"
+                                    onClick={() => setShowCcModal(false)}
+                                    style={{ fontSize: '0.6rem' }} />
+                            </div>
+                            <div className="modal-body p-2">
+                                <div className="row g-2">
+                                    <div className="col-6">
+                                        <label className="form-label mb-1" style={{ fontSize: '0.75rem' }}>
+                                            Bonus Qty (return)
+                                        </label>
+                                        <input type="number" className="form-control form-control-sm"
+                                            value={ccModalData.bonus} readOnly />
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label mb-1" style={{ fontSize: '0.75rem' }}>
+                                            Purc. Price
+                                        </label>
+                                        <input type="number" className="form-control form-control-sm"
+                                            value={ccModalData.puPrice} readOnly />
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label mb-1" style={{ fontSize: '0.75rem' }}>
+                                            CC %
+                                            {ccModalData.fromStockEntry > 0 && (
+                                                <span className="text-muted ms-1" style={{ fontSize: '0.65rem' }}>
+                                                    (stock: {ccModalData.fromStockEntry}%)
+                                                </span>
+                                            )}
+                                        </label>
+                                        <input type="number" className="form-control form-control-sm"
+                                            autoFocus
+                                            value={ccModalData.ccPercentage}
+                                            onChange={(e) => {
+                                                const cc = parseFloat(e.target.value) || 0;
+                                                const amt = calculateReturnCcAmount(
+                                                    ccModalData.puPrice, cc, ccModalData.bonus
+                                                );
+                                                setCcModalData(prev => ({
+                                                    ...prev, ccPercentage: cc, itemCcAmount: amt
+                                                }));
+                                            }} />
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label mb-1" style={{ fontSize: '0.75rem' }}>
+                                            CC Amount
+                                        </label>
+                                        <input type="number" className="form-control form-control-sm"
+                                            value={ccModalData.itemCcAmount} readOnly
+                                            style={{ backgroundColor: '#f8f9fa' }} />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer py-1 px-3">
+                                <button type="button" className="btn btn-primary btn-sm"
+                                    onClick={() => {
+                                        setShowCcModal(false);
+                                        document.getElementById('selectedItemRate')?.focus();
+                                    }}>
+                                    Apply
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+            {showCcModal && (
+                <div className="modal fade show" tabIndex="-1"
+                    style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '420px' }}>
+                        <div className="modal-content">
+                            <div className="modal-header py-1 px-3" style={{ backgroundColor: '#f8f9fa' }}>
+                                <h6 className="modal-title mb-0" style={{ fontSize: '0.9rem' }}>
+                                    CC Charge — {ccModalData.itemName}
+                                </h6>
+                                <button type="button" className="btn-close"
+                                    onClick={() => {
+                                        setShowCcModal(false);
+                                        setTimeout(() => {
+                                            const insertBtn = document.getElementById('insertButton');
+                                            if (insertBtn) {
+                                                insertBtn.focus();
+                                            }
+                                        }, 50);
+                                    }}
+                                    style={{ fontSize: '0.6rem' }} />
+                            </div>
+                            <div className="modal-body p-2">
+                                <div className="row g-2">
+                                    <div className="col-6">
+                                        <label className="form-label mb-1" style={{ fontSize: '0.75rem' }}>
+                                            Bonus Qty (return)
+                                        </label>
+                                        <input type="number" className="form-control form-control-sm"
+                                            value={ccModalData.bonus} readOnly />
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label mb-1" style={{ fontSize: '0.75rem' }}>
+                                            Purc. Price
+                                        </label>
+                                        <input type="number" className="form-control form-control-sm"
+                                            value={ccModalData.puPrice} readOnly />
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label mb-1" style={{ fontSize: '0.75rem' }}>
+                                            CC %
+                                            {ccModalData.fromStockEntry > 0 && (
+                                                <span className="text-muted ms-1" style={{ fontSize: '0.65rem' }}>
+                                                    (stock: {ccModalData.fromStockEntry}%)
+                                                </span>
+                                            )}
+                                        </label>
+                                        <input type="number" className="form-control form-control-sm"
+                                            autoFocus
+                                            value={ccModalData.ccPercentage}
+                                            onChange={(e) => {
+                                                const cc = parseFloat(e.target.value) || 0;
+                                                const amt = calculateReturnCcAmount(
+                                                    ccModalData.puPrice, cc, ccModalData.bonus
+                                                );
+                                                setCcModalData(prev => ({
+                                                    ...prev, ccPercentage: cc, itemCcAmount: amt
+                                                }));
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    document.getElementById('ccApplyButton')?.focus();
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label mb-1" style={{ fontSize: '0.75rem' }}>
+                                            CC Amount
+                                        </label>
+                                        <input type="number" className="form-control form-control-sm"
+                                            value={ccModalData.itemCcAmount} readOnly
+                                            style={{ backgroundColor: '#f8f9fa' }} />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer py-1 px-3">
+                                <button
+                                    type="button"
+                                    id="ccApplyButton"
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() => {
+                                        setShowCcModal(false);
+                                        setTimeout(() => {
+                                            const rateInput = document.getElementById('selectedItemRate');
+                                            if (rateInput) {
+                                                rateInput.focus();
+                                                rateInput.select();
+                                            }
+                                        }, 50);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            setShowCcModal(false);
+                                            setTimeout(() => {
+                                                const insertBtn = document.getElementById('insertButton');
+                                                if (insertBtn) {
+                                                    insertBtn.focus();
+                                                }
+                                            }, 50);
+                                        }
+                                    }}
+                                >
+                                    Apply
                                 </button>
                             </div>
                         </div>

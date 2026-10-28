@@ -43,6 +43,10 @@ namespace SkyForge.Models.Retailer.PurchaseReturnModel
         [Precision(10, 3)]
         public decimal? Quantity { get; set; }
 
+        [Column("bonus")]
+        [Precision(10, 3)]
+        public decimal? Bonus { get; set; }
+
         [Column("bill_quantity")]
         [Precision(10, 3)]
         public decimal BillQty { get; set; }

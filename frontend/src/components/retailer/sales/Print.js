@@ -220,6 +220,15 @@ const SalesBillPrint = () => {
         return rounded.toString();
     };
 
+    // Qty & Free: show integer when the decimal part is .00, otherwise up to 3 decimals
+    const formatQty = (num) => {
+        if (num === null || num === undefined) return '0';
+        const n = parseFloat(num);
+        if (isNaN(n)) return '0';
+        // Trim trailing zeros: 5.00 -> "5", 5.50 -> "5.5", 5.555 -> "5.555"
+        return Number(n.toFixed(3)).toString();
+    };
+
     const formatDate = (dateString, format = 'english') => {
         if (!dateString) return 'N/A';
 
@@ -816,7 +825,7 @@ const SalesBillPrint = () => {
                                             <td>{item.unitName || ''}</td>
                                             <td>{item.batchNumber || 'N/A'}</td>
                                             <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-                                            <td className="text-right">{formatTo2Decimal(item.quantity)}</td>
+                                            <td className="text-right">{formatQty(item.quantity)}</td>
                                             <td className="text-right">{formatTo2Decimal(item.price)}</td>
                                             <td className="text-right">{formatTo2Decimal(itemTotal)}</td>
                                         </tr>

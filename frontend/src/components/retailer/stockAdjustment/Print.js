@@ -18,26 +18,6 @@ const StockAdjustmentPrint = () => {
     const [firstBill, setFirstBill] = useState(false);
     const printableRef = useRef();
 
-    // API instance with JWT token
-    // const api = axios.create({
-    //     baseURL: process.env.REACT_APP_API_BASE_URL,
-    //     withCredentials: true,
-    // });
-
-    // // Add authorization header to all requests
-    // api.interceptors.request.use(
-    //     (config) => {
-    //         const token = localStorage.getItem('token');
-    //         if (token) {
-    //             config.headers.Authorization = `Bearer ${token}`;
-    //         }
-    //         return config;
-    //     },
-    //     (error) => {
-    //         return Promise.reject(error);
-    //     }
-    // );
-
     useEffect(() => {
         const fetchAdjustmentData = async () => {
             try {
@@ -238,6 +218,15 @@ const StockAdjustmentPrint = () => {
         if (!parts[1]) return parts[0] + ".00";
         if (parts[1].length === 1) return parts[0] + "." + parts[1] + "0";
         return rounded.toString();
+    };
+
+    // Qty & Free: show integer when the decimal part is .00, otherwise up to 3 decimals
+    const formatQty = (num) => {
+        if (num === null || num === undefined) return '0';
+        const n = parseFloat(num);
+        if (isNaN(n)) return '0';
+        // Trim trailing zeros: 5.00 -> "5", 5.50 -> "5.5", 5.555 -> "5.555"
+        return Number(n.toFixed(3)).toString();
     };
 
     const formatDate = (dateString, format = 'english') => {
@@ -811,7 +800,7 @@ const StockAdjustmentPrint = () => {
                                             </td>
                                             <td>{item.batchNumber || 'N/A'}</td>
                                             <td>{item.expiryDate ? formatDate(item.expiryDate) : 'N/A'}</td>
-                                            <td className="text-right">{formatTo2Decimal(item.quantity)}</td>
+                                            <td className="text-right">{formatQty(item.quantity)}</td>
                                             <td>{item.unitName || ''}</td>
                                             <td className="text-right">{formatTo2Decimal(item.puPrice)}</td>
                                             <td className="text-right">{formatTo2Decimal(itemTotal)}</td>
@@ -936,7 +925,7 @@ const StockAdjustmentPrint = () => {
                                         </td>
                                         <td>{item.batchNumber || 'N/A'}</td>
                                         <td>{item.expiryDate ? formatDate(item.expiryDate) : 'N/A'}</td>
-                                        <td className="print-text-right">{formatTo2Decimal(item.quantity)}</td>
+                                        <td className="print-text-right">{formatQty(item.quantity)}</td>
                                         <td>{item.unitName || ''}</td>
                                         <td className="print-text-right">{formatTo2Decimal(item.puPrice)}</td>
                                         <td className="print-text-right">{formatTo2Decimal(itemTotal)}</td>

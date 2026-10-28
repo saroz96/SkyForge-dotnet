@@ -3577,7 +3577,7 @@ const EditSalesQuotation = () => {
             </div>
 
             {/* Modals - using the same structure as EditPurcRtn */}
-            {showHeaderItemModal && (
+            {/* {showHeaderItemModal && (
                 <div
                     className="modal fade show"
                     id="headerItemModal"
@@ -3760,104 +3760,209 @@ const EditSalesQuotation = () => {
                         </div>
                     </div>
                 </div>
-            )}
+            )} */}
 
-            {/* {showAccountModal && (
+            {showHeaderItemModal && (
                 <div
                     className="modal fade show"
-                    id="accountModal"
+                    id="headerItemModal"
                     tabIndex="-1"
-                    style={{ display: 'block' }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            handleAccountModalClose();
-                            setTimeout(() => {
-                                document.getElementById('address').focus();
-                            }, 0);
-                        }
+                    style={{
+                        display: 'block',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 1050
                     }}
                 >
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content" style={{ height: '400px' }}>
-                            <div className="modal-header py-1">
-                                <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
-                                    Select an Account
-                                </h5>
-                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
-                                    {totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...'}
-                                </small>
+                    <div
+                        className="modal-dialog modal-xl"
+                        style={{
+                            position: 'absolute',
+                            top: 'auto',
+                            bottom: '0',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            margin: '0',
+                            width: '90%',
+                            maxWidth: '90%'
+                        }}
+                    >
+                        <div
+                            className="modal-content"
+                            style={{
+                                height: '35vh',
+                                borderBottomLeftRadius: '0',
+                                borderBottomRightRadius: '0',
+                                borderTopLeftRadius: '0.5rem',
+                                borderTopRightRadius: '0.5rem'
+                            }}
+                        >
+                            {/* 1. STICKY MODAL HEADER */}
+                            <div
+                                className="modal-header py-0"
+                                style={{
+                                    position: 'sticky',
+                                    top: 0,
+                                    zIndex: 2,
+                                    backgroundColor: 'white'
+                                }}
+                            >
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>Select Item</h5>
+                                <div className="d-flex align-items-center" style={{ flex: 1, marginLeft: '10px' }}>
+                                    <div className="position-relative" style={{ width: '100%' }}>
+                                        <input
+                                            type="text"
+                                            className="form-control form-control-sm"
+                                            placeholder="Search items... (Press F6 to create new item)"
+                                            autoComplete='off'
+                                            value={headerSearchQuery}
+                                            onChange={(e) => {
+                                                const query = e.target.value;
+                                                setHeaderSearchQuery(query);
+                                                if (query.trim() !== '' && headerShouldShowLastSearchResults) {
+                                                    setHeaderShouldShowLastSearchResults(false);
+                                                    setHeaderLastSearchQuery('');
+                                                }
+                                            }}
+                                            autoFocus
+                                            onFocus={() => {
+                                                // RESET ROW FOCUS ON INPUT FOCUS
+                                                setHighlightedRowIndex(-1);
+                                                document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowDown') {
+                                                    e.preventDefault();
+                                                    const firstItem = document.querySelector('.dropdown-item');
+                                                    if (firstItem) {
+                                                        firstItem.focus();
+                                                    }
+                                                } else if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const activeItem = document.querySelector('.dropdown-item.active');
+
+                                                    if (activeItem) {
+                                                        const index = parseInt(activeItem.getAttribute('data-index'));
+                                                        const itemToAdd = headerSearchResults[index];
+                                                        if (itemToAdd) {
+                                                            selectItemForInsert(itemToAdd);
+                                                            setShowHeaderItemModal(false);
+                                                        }
+                                                    } else {
+                                                        if (!headerSearchQuery.trim()) {
+                                                            setShowHeaderItemModal(false);
+                                                            setTimeout(() => {
+                                                                const discountInput = document.getElementById('discountPercentage');
+                                                                if (discountInput) {
+                                                                    discountInput.focus();
+                                                                    discountInput.select();
+                                                                }
+                                                            }, 50);
+                                                        }
+                                                    }
+                                                } else if (e.key === 'F6') {
+                                                    e.preventDefault();
+                                                    setShowItemsModal(true);
+                                                    setShowHeaderItemModal(false);
+                                                    setHeaderSearchQuery('');
+                                                    setHeaderShouldShowLastSearchResults(false);
+                                                    setHeaderLastSearchQuery('');
+                                                } else if (e.key === 'Escape') {
+                                                    e.preventDefault();
+                                                    setShowHeaderItemModal(false);
+                                                }
+                                            }}
+                                            style={{
+                                                height: '24px',
+                                                fontSize: '0.75rem',
+                                                padding: '0.25rem 0.5rem',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    </div>
+                                </div>
                                 <button
                                     type="button"
                                     className="btn-close"
-                                    onClick={handleAccountModalClose}
+                                    onClick={handleHeaderItemModalClose}
                                     aria-label="Close"
                                     style={{ fontSize: '0.6rem', padding: '0.25rem' }}
                                 ></button>
                             </div>
-                            <div className="p-2 bg-white sticky-top">
-                                <input
-                                    type="text"
-                                    id="searchAccount"
-                                    className="form-control form-control-sm"
-                                    placeholder="Search Account... (Press F6 to create new account)"
-                                    autoFocus
-                                    autoComplete='off'
-                                    value={accountSearchQuery}
-                                    onChange={handleAccountSearch}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                            e.preventDefault();
-                                            const firstAccountItem = document.querySelector('.account-item');
-                                            if (firstAccountItem) {
-                                                firstAccountItem.focus();
-                                            }
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const firstAccountItem = document.querySelector('.account-item.active');
-                                            if (firstAccountItem) {
-                                                const accountId = firstAccountItem.getAttribute('data-account-id');
-                                                const account = accounts.find(a => a.id === accountId);
-                                                if (account) {
-                                                    selectAccount(account);
-                                                    document.getElementById('address').focus();
-                                                }
-                                            }
-                                        } else if (e.key === 'F6') {
-                                            e.preventDefault();
-                                            setShowAccountCreationModal(true);
-                                            handleAccountModalClose();
-                                        }
-                                    }}
-                                    ref={accountSearchRef}
-                                    style={{
-                                        height: '24px',
-                                        fontSize: '0.75rem',
-                                        padding: '0.25rem 0.5rem'
-                                    }}
-                                />
-                            </div>
-                            <div className="modal-body p-0">
-                                <div style={{ height: 'calc(320px - 40px)' }}>
-                                    <VirtualizedAccountList
-                                        accounts={accounts}
-                                        onAccountClick={(account) => {
-                                            selectAccount(account);
-                                            document.getElementById('address').focus();
+
+                            {/* 2. SCROLLABLE MODAL BODY */}
+                            <div className="modal-body p-0" style={{ overflow: 'hidden' }}>
+                                <div style={{ height: 'calc(55vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+                                    <div
+                                        id="dropdownMenu"
+                                        className="w-100 h-100"
+                                        style={{
+                                            border: '1px solid #dee2e6',
+                                            borderRadius: '0.25rem',
+                                            overflowY: 'auto', // ENABLE SCROLL INSIDE LIST
+                                            display: 'flex',
+                                            flexDirection: 'column'
                                         }}
-                                        searchRef={accountSearchRef}
-                                        hasMore={hasMoreAccountResults}
-                                        isSearching={isAccountSearching}
-                                        onLoadMore={loadMoreAccounts}
-                                        totalAccounts={totalAccounts}
-                                        page={accountSearchPage}
-                                        searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
-                                    />
+                                    >
+                                        {/* 3. STICKY COLUMN HEADERS */}
+                                        <div className="dropdown-header" style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '8% 10% 35% 15% 12% 10% 10%',
+                                            alignItems: 'center',
+                                            padding: '0 8px',
+                                            height: '20px',
+                                            background: '#f0f0f0',
+                                            fontWeight: 'bold',
+                                            borderBottom: '1px solid #dee2e6',
+                                            position: 'sticky',
+                                            top: 0,
+                                            zIndex: 1,
+                                            fontSize: '0.7rem'
+                                        }}>
+                                            <div><strong>#</strong></div>
+                                            <div><strong>HSN</strong></div>
+                                            <div><strong>Description</strong></div>
+                                            <div><strong>Category</strong></div>
+                                            <div><strong>Stock</strong></div>
+                                            <div><strong>Unit</strong></div>
+                                            <div><strong>Rate</strong></div>
+                                        </div>
+
+                                        {(headerSearchResults.length > 0 || (headerShouldShowLastSearchResults && headerSearchResults.length > 0)) ? (
+                                            <VirtualizedItemListForSales
+                                                items={headerSearchResults}
+                                                onItemClick={(item) => {
+                                                    selectItemForInsert(item);
+                                                    setShowHeaderItemModal(false);
+                                                }}
+                                                searchRef={{ current: document.querySelector('#headerItemModal input[type="text"]') }}
+                                                hasMore={hasMoreHeaderSearchResults}
+                                                isSearching={isHeaderSearching}
+                                                onLoadMore={loadMoreHeaderSearchItems}
+                                                totalItems={totalHeaderSearchItems}
+                                                page={headerSearchPage}
+                                                searchQuery={headerShouldShowLastSearchResults ? headerLastSearchQuery : headerSearchQuery}
+                                                setNotification={setNotification}
+                                            />
+                                        ) : (
+                                            <div className="text-center py-3 text-muted" style={{ fontSize: '0.75rem' }}>
+                                                {headerSearchQuery ? 'No items found' : 'Type to search items'}
+                                                <div className="small mt-1">
+                                                    <small className="text-info">Press F6 to create a new item</small>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            )} */}
+            )}
 
             {/* Account Modal - Using New Component */}
             {showAccountModal && (
