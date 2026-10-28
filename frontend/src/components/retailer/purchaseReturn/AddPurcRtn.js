@@ -4820,7 +4820,7 @@ const AddPurcRtn = () => {
                         </div>
 
                         {/* Bill Details Table */}
-                        <div className="table-responsive mb-0">
+                        {/* <div className="table-responsive mb-0">
                             <table className="table table-sm table-bordered mb-1">
                                 <thead>
                                     <tr>
@@ -4987,7 +4987,6 @@ const AddPurcRtn = () => {
                                         </>
                                     )}
 
-                                    {/* Row 3: Round Off, Total Amount, In Words */}
                                     <tr>
                                         <td style={{ padding: '1px' }}>
                                             <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
@@ -5077,6 +5076,313 @@ const AddPurcRtn = () => {
                                         </td>
                                         <td style={{ padding: '1px' }}>
                                             <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.totalAmount)}</p>
+                                        </td>
+                                        <td colSpan="2" style={{ padding: '1px' }}>
+                                            <div
+                                                className="d-flex align-items-start gap-1"
+                                                id="amountInWords"
+                                                title={convertToRupeesAndPaisaNepali(totals.totalAmount) + " Only."}
+                                            >
+                                                <label
+                                                    className="form-label mb-0 fw-semibold text-nowrap"
+                                                    style={{ fontSize: '0.8rem' }}
+                                                >
+                                                    In Words:
+                                                </label>
+                                                <div
+                                                    className="form-control-plaintext mb-0 flex-grow-1"
+                                                    style={{
+                                                        fontSize: '0.7rem',
+                                                        lineHeight: '1.1',
+                                                        maxHeight: '44px',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        display: '-webkit-box',
+                                                        WebkitLineClamp: 2,
+                                                        WebkitBoxOrientation: 'vertical',
+                                                        wordBreak: 'break-word',
+                                                        whiteSpace: 'normal',
+                                                        padding: 0,
+                                                        border: 'none',
+                                                        backgroundColor: 'transparent'
+                                                    }}
+                                                >
+                                                    {convertToRupeesAndPaisaNepali(totals.totalAmount)} Only.
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div> */}
+
+                        <div className="table-responsive mb-0">
+                            <table className="table table-sm table-bordered mb-1">
+                                <thead>
+                                    <tr>
+                                        <th colSpan="6" className="text-center bg-light py-0" style={{ padding: '2px' }}>Bill Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {/* Row 1: Sub Total, Discount %, Discount Rs. */}
+                                    <tr>
+                                        <td style={{ width: '15%', padding: '1px' }}>
+                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Sub Total:</label>
+                                        </td>
+                                        <td style={{ width: '20%', padding: '1px' }}>
+                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>
+                                                Rs. {formatter.format(totals.subTotal)}
+                                            </p>
+                                        </td>
+                                        <td style={{ width: '15%', padding: '1px' }}>
+                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Discount %:</label>
+                                        </td>
+                                        <td style={{ width: '20%', padding: '1px' }}>
+                                            <div className="position-relative">
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    name="discountPercentage"
+                                                    id="discountPercentage"
+                                                    className="form-control form-control-sm"
+                                                    value={formData.discountPercentage}
+                                                    onChange={handleDiscountPercentageChange}
+                                                    onFocus={(e) => { e.target.select(); }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') handleKeyDown(e, 'discountPercentage');
+                                                    }}
+                                                    style={{
+                                                        height: '22px',
+                                                        fontSize: '0.875rem',
+                                                        paddingTop: '0.5rem',
+                                                        width: '100%'
+                                                    }}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td style={{ width: '15%', padding: '1px' }}>
+                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Discount (Rs.):</label>
+                                        </td>
+                                        <td style={{ width: '15%', padding: '1px' }}>
+                                            <div className="position-relative">
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    name="discountAmount"
+                                                    id="discountAmount"
+                                                    value={formData.discountAmount}
+                                                    className="form-control form-control-sm"
+                                                    onChange={handleDiscountAmountChange}
+                                                    onFocus={(e) => { e.target.select(); }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') handleKeyDown(e, 'discountAmount');
+                                                    }}
+                                                    style={{
+                                                        height: '22px',
+                                                        fontSize: '0.875rem',
+                                                        paddingTop: '0.5rem',
+                                                        width: '100%'
+                                                    }}
+                                                />
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    {/* Row 2: CC Charge — ALWAYS visible, regardless of VAT type */}
+                                    <tr id="ccChargeRow">
+                                        {/* CC Charge Label */}
+                                        <td style={{ padding: '1px' }}>
+                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>CC Charge</label>
+                                        </td>
+
+                                        {/* CC Charge Input */}
+                                        <td style={{ padding: '1px' }}>
+                                            <div className="d-flex align-items-center gap-1" style={{ width: '100%' }}>
+                                                <input
+                                                    type="number"
+                                                    name="CCAmount"
+                                                    id="CCAmount"
+                                                    className="form-control form-control-sm"
+                                                    value={
+                                                        isCCManuallyEdited
+                                                            ? (manualCCAmount ?? 0)
+                                                            : (totals.totalCCAmount ?? 0).toFixed(2)
+                                                    }
+                                                    onChange={(e) => {
+                                                        const newValue = parseFloat(e.target.value) || 0;
+                                                        setManualCCAmount(newValue);
+                                                        setIsCCManuallyEdited(true);
+                                                    }}
+                                                    onFocus={(e) => { e.target.select(); }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') handleKeyDown(e, 'CCAmount');
+                                                    }}
+                                                    style={{
+                                                        height: '22px',
+                                                        fontSize: '0.875rem',
+                                                        paddingTop: '0.5rem',
+                                                        width: isCCManuallyEdited ? '85%' : '100%'
+                                                    }}
+                                                />
+                                                {isCCManuallyEdited && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center"
+                                                        onClick={() => {
+                                                            setManualCCAmount(null);
+                                                            setIsCCManuallyEdited(false);
+                                                        }}
+                                                        title="Reset to calculated CC amount"
+                                                        style={{
+                                                            height: '22px',
+                                                            width: '28px',
+                                                            fontSize: '0.7rem',
+                                                            padding: '0'
+                                                        }}
+                                                    >
+                                                        <i className="bi bi-arrow-repeat" style={{ fontSize: '0.7rem' }}></i>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+
+                                        {/* VAT-specific fields — only shown when VAT is active and not exempt */}
+                                        {company.vatEnabled && formData.isVatExempt !== 'true' ? (
+                                            <>
+                                                <td style={{ padding: '1px' }}>
+                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Taxable Amount:</label>
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>
+                                                        Rs. {formatter.format(totals.taxableAmount)}
+                                                    </p>
+                                                </td>
+                                                <td className="d-none">
+                                                    <input
+                                                        type="number"
+                                                        name="vatPercentage"
+                                                        id="vatPercentage"
+                                                        className="form-control"
+                                                        value={formData.vatPercentage}
+                                                        readOnly
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
+                                                        VAT ({formData.vatPercentage || 13}%):
+                                                    </label>
+                                                </td>
+                                                <td style={{ padding: '1px' }}>
+                                                    <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>
+                                                        Rs. {formatter.format(totals.vatAmount)}
+                                                    </p>
+                                                </td>
+                                            </>
+                                        ) : (
+                                            /* Pad remaining 4 columns when VAT is not shown, keeping table structure valid */
+                                            <td colSpan="4"></td>
+                                        )}
+                                    </tr>
+
+                                    {/* Row 3: Round Off, Total Amount, In Words */}
+                                    <tr>
+                                        <td style={{ padding: '1px' }}>
+                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Round Off:</label>
+                                        </td>
+                                        <td style={{ padding: '1px', verticalAlign: 'middle' }}>
+                                            <div className="position-relative" style={{ minWidth: '150px' }}>
+                                                <div className="input-group input-group-sm" style={{ flexWrap: 'nowrap' }}>
+                                                    <input
+                                                        type="number"
+                                                        className="form-control form-control-sm"
+                                                        step="any"
+                                                        id="roundOffAmount"
+                                                        name="roundOffAmount"
+                                                        value={
+                                                            roundOffPurchaseReturn && !manualRoundOffOverride
+                                                                ? (totals.autoRoundOffAmount ?? 0).toFixed(2)
+                                                                : formData.roundOffAmount
+                                                        }
+                                                        onChange={(e) => {
+                                                            if (roundOffPurchaseReturn) {
+                                                                setManualRoundOffOverride(true);
+                                                            }
+                                                            setFormData({ ...formData, roundOffAmount: e.target.value });
+                                                        }}
+                                                        onFocus={(e) => {
+                                                            e.target.select();
+                                                            if (roundOffPurchaseReturn && !manualRoundOffOverride) {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    roundOffAmount: (totals.autoRoundOffAmount ?? 0).toFixed(2)
+                                                                }));
+                                                            }
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            if (
+                                                                roundOffPurchaseReturn &&
+                                                                parseFloat(e.target.value) === totals.autoRoundOffAmount
+                                                            ) {
+                                                                setManualRoundOffOverride(false);
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                document.getElementById('saveBill')?.focus();
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            height: '28px',
+                                                            fontSize: '0.875rem',
+                                                            width: 'auto',
+                                                            flex: '1'
+                                                        }}
+                                                    />
+                                                    {roundOffPurchaseReturn && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-outline-secondary btn-sm"
+                                                            onClick={() => {
+                                                                if (manualRoundOffOverride) {
+                                                                    setManualRoundOffOverride(false);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roundOffAmount: (totals.autoRoundOffAmount ?? 0).toFixed(2)
+                                                                    }));
+                                                                } else {
+                                                                    setManualRoundOffOverride(true);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roundOffAmount: (totals.autoRoundOffAmount ?? 0).toFixed(2)
+                                                                    }));
+                                                                }
+                                                            }}
+                                                            title={manualRoundOffOverride ? "Use auto round-off" : "Switch to manual input"}
+                                                            style={{
+                                                                height: '28px',
+                                                                fontSize: '0.75rem',
+                                                                padding: '0 8px',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                        >
+                                                            {manualRoundOffOverride ? (
+                                                                <i className="bi bi-arrow-clockwise"></i>
+                                                            ) : (
+                                                                <i className="bi bi-pencil"></i>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '1px' }}>
+                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Total Amount:</label>
+                                        </td>
+                                        <td style={{ padding: '1px' }}>
+                                            <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>
+                                                Rs. {formatter.format(totals.totalAmount)}
+                                            </p>
                                         </td>
                                         <td colSpan="2" style={{ padding: '1px' }}>
                                             <div
