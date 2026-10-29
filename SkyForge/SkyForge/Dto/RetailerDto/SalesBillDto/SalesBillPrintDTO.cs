@@ -48,6 +48,13 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public bool IsVatExempt { get; set; }
         public string? IsVatAll { get; set; }
         public decimal RoundOffAmount { get; set; }
+
+        public string? CashSettlementType { get; set; }
+        public decimal CashReceivedAmount { get; set; }
+        public decimal CashRemainingAmount { get; set; }
+        public string? CashSettlementStatus { get; set; }
+        public string? CashSettlementRemarks { get; set; }
+
         public string? CashAccount { get; set; }
         public string? CashAccountAddress { get; set; }
         public string? CashAccountPan { get; set; }

@@ -138,6 +138,29 @@ namespace SkyForge.Models.Retailer.Sales
         [StringLength(50)]
         public string? PaymentMode { get; set; }
 
+        [Column("cash_settlement_type")]
+        [StringLength(20)]
+        public string? CashSettlementType { get; set; } // "full" | "partial"
+
+        [Column("cash_received_amount")]
+        [Precision(18, 2)]
+        public decimal CashReceivedAmount { get; set; } = 0;
+
+        [Column("cash_remaining_amount")]
+        [Precision(18, 2)]
+        public decimal CashRemainingAmount { get; set; } = 0;
+
+        [Column("cash_settlement_status")]
+        [StringLength(20)]
+        public string? CashSettlementStatus { get; set; } // "Settled" | "Partial" | "Pending"
+
+        [Column("cash_settlement_date")]
+        public DateTime? CashSettlementDate { get; set; }
+
+        [Column("cash_settlement_remarks")]
+        [StringLength(500)]
+        public string? CashSettlementRemarks { get; set; }
+
         [Column("date")]
         public DateTime Date { get; set; }
 

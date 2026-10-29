@@ -245,7 +245,11 @@ namespace SkyForge.Models.Retailer.TransactionModel
         [Column("cash_settlement_status")]
         [MaxLength(50)]
         public string? CashSettlementStatus { get; set; } // "Pending", "Received", "Paid", "Refunded","Returned"
-
+        
+        [Column("cash_settlement_amount")]
+        [Precision(18, 2)]
+        public decimal? CashSettlementAmount { get; set; }
+        
         [Column("cash_settlement_date")]
         public DateTime? CashSettlementDate { get; set; }
 

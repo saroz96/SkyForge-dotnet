@@ -387,469 +387,6 @@ namespace SkyForge.Services.Retailer.StatementServices
     "Income (Direct/Opr.)",
     "Income (Indirect)"
 };
-
-
-        // private async Task<decimal> CalculateOpeningBalanceAsync(
-        //     Guid companyId,
-        //     Guid accountId,
-        //     DateTime? fromDate,
-        //     InitialOpeningBalanceDTO initialOpeningBalance,
-        //     string? paymentMode)
-        // {
-        //     try
-        //     {
-        //         // 1. Get the account with its account group
-        //         var account = await _context.Accounts
-        //             .Include(a => a.AccountGroup)
-        //             .FirstOrDefaultAsync(a => a.Id == accountId && a.CompanyId == companyId);
-
-        //         if (account == null)
-        //         {
-        //             _logger.LogWarning($"Account {accountId} not found");
-        //             return 0;
-        //         }
-
-        //         var accountGroupName = account.AccountGroup?.Name ?? string.Empty;
-
-        //         // 2. Check if this is a nominal account (should NOT have opening balance from previous fiscal year)
-        //         if (_nominalAccountGroups.Contains(accountGroupName))
-        //         {
-        //             _logger.LogInformation($"Account {account.Name} is a nominal account. Opening balance starts from 0.");
-
-        //             if (fromDate.HasValue)
-        //             {
-        //                 var currentFiscalYear = await _context.FiscalYears
-        //                     .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
-
-        //                 if (currentFiscalYear != null)
-        //                 {
-        //                     var fiscalYearStart = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-
-        //                     var openingBalanceQuery = _context.Transactions
-        //                         .Where(t => t.CompanyId == companyId &&
-        //                                    t.IsActive &&
-        //                                    t.FiscalYearId == currentFiscalYear.Id &&
-        //                                    t.Date.Date >= fiscalYearStart.Date &&
-        //                                    t.Date.Date < fromDate.Value.Date &&
-        //                                    (t.AccountId == accountId ||
-        //                                     t.PaymentAccountId2 == accountId ||
-        //                                     t.ReceiptAccountId2 == accountId ||
-        //                                     t.DebitAccountId == accountId ||
-        //                                     t.CreditAccountId == accountId));
-
-        //                     // ✅ Apply payment mode filter for cash transactions
-        //                     if (!string.IsNullOrEmpty(paymentMode))
-        //                     {
-        //                         if (paymentMode == "exclude-cash")
-        //                         {
-        //                             // Exclude ALL cash transactions
-        //                             openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode != PaymentMode.Cash);
-        //                         }
-        //                         else if (paymentMode == "cash")
-        //                         {
-        //                             // Only include cash transactions
-        //                             openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode == PaymentMode.Cash);
-        //                         }
-        //                         // For "all" or other modes, include all transactions
-        //                     }
-
-        //                     var transactions = await openingBalanceQuery.ToListAsync();
-
-        //                     decimal balance = 0;
-        //                     foreach (var tx in transactions)
-        //                     {
-        //                         // ✅ Skip cash transactions for Sales, Sales Return, Purchase, Purchase Return if "include-cash" is not selected
-        //                         // But keep them if user specifically wants to include them
-        //                         // The paymentMode filter already handles this
-        //                         if (tx.PaymentMode == PaymentMode.Cash &&
-        //                             (tx.Type == TransactionType.Sale ||
-        //                              tx.Type == TransactionType.SlRt ||
-        //                              tx.Type == TransactionType.Purc ||
-        //                              tx.Type == TransactionType.PrRt))
-        //                         {
-        //                             // Skip these cash transactions for opening balance calculation
-        //                             // unless the user selected "cash" mode specifically
-        //                             if (paymentMode != "cash")
-        //                             {
-        //                                 continue;
-        //                             }
-        //                         }
-
-        //                         if (tx.AccountId == accountId)
-        //                         {
-        //                             balance += tx.TotalDebit - tx.TotalCredit;
-        //                         }
-        //                         else if (tx.PaymentAccountId2 == accountId)
-        //                         {
-        //                             balance -= tx.TotalCredit;
-        //                         }
-        //                         else if (tx.ReceiptAccountId2 == accountId)
-        //                         {
-        //                             balance += tx.TotalDebit;
-        //                         }
-        //                         else if (tx.DebitAccountId == accountId)
-        //                         {
-        //                             balance += tx.TotalDebit;
-        //                         }
-        //                         else if (tx.CreditAccountId == accountId)
-        //                         {
-        //                             balance -= tx.TotalCredit;
-        //                         }
-        //                     }
-
-        //                     return balance;
-        //                 }
-        //             }
-
-        //             return 0;
-        //         }
-
-        //         // 3. For REAL accounts (Balance Sheet accounts), calculate opening balance
-        //         decimal openingBalance = initialOpeningBalance.Type == "Dr"
-        //             ? initialOpeningBalance.Amount
-        //             : -initialOpeningBalance.Amount;
-
-        //         _logger.LogInformation($"Account {account.Name} is a real account. Initial opening balance: {openingBalance}");
-
-        //         if (fromDate.HasValue)
-        //         {
-        //             var fromDateOnly = fromDate.Value.Date;
-
-        //             var openingBalanceQuery = _context.Transactions
-        //                 .Where(t => t.CompanyId == companyId &&
-        //                            t.IsActive &&
-        //                            t.Date.Date < fromDateOnly &&
-        //                            (t.AccountId == accountId ||
-        //                             t.PaymentAccountId2 == accountId ||
-        //                             t.ReceiptAccountId2 == accountId ||
-        //                             t.DebitAccountId == accountId ||
-        //                             t.CreditAccountId == accountId));
-
-        //             // ✅ Apply payment mode filter for cash transactions
-        //             if (!string.IsNullOrEmpty(paymentMode))
-        //             {
-        //                 if (paymentMode == "exclude-cash")
-        //                 {
-        //                     // Exclude ALL cash transactions
-        //                     openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode != PaymentMode.Cash);
-        //                 }
-        //                 else if (paymentMode == "cash")
-        //                 {
-        //                     // Only include cash transactions
-        //                     openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode == PaymentMode.Cash);
-        //                 }
-        //                 // For "all" or other modes, include all transactions
-        //             }
-
-        //             var transactionsBeforeFromDate = await openingBalanceQuery
-        //                 .OrderBy(t => t.Date)
-        //                 .ThenBy(t => t.CreatedAt)
-        //                 .ToListAsync();
-
-        //             var processedTransactions = new HashSet<string>();
-
-        //             foreach (var tx in transactionsBeforeFromDate)
-        //             {
-        //                 var txIdentifier = $"{tx.Date}-{tx.Type}-{tx.BillNumber}-{tx.TotalDebit}-{tx.TotalCredit}";
-
-        //                 if (!processedTransactions.Contains(txIdentifier))
-        //                 {
-        //                     processedTransactions.Add(txIdentifier);
-
-        //                     // ✅ Skip cash transactions for Sales, Sales Return, Purchase, Purchase Return
-        //                     // unless user specifically selected "cash" mode
-        //                     if (tx.PaymentMode == PaymentMode.Cash &&
-        //                         (tx.Type == TransactionType.Sale ||
-        //                          tx.Type == TransactionType.SlRt ||
-        //                          tx.Type == TransactionType.Purc ||
-        //                          tx.Type == TransactionType.PrRt))
-        //                     {
-        //                         // Skip these cash transactions for opening balance calculation
-        //                         // unless the user selected "cash" mode specifically
-        //                         if (paymentMode != "cash")
-        //                         {
-        //                             continue;
-        //                         }
-        //                     }
-
-        //                     decimal amount = 0;
-
-        //                     if (tx.AccountId == accountId)
-        //                     {
-        //                         amount = tx.TotalDebit - tx.TotalCredit;
-        //                     }
-        //                     else if (tx.PaymentAccountId2 == accountId)
-        //                     {
-        //                         amount = -tx.TotalCredit;
-        //                     }
-        //                     else if (tx.ReceiptAccountId2 == accountId)
-        //                     {
-        //                         amount = tx.TotalDebit;
-        //                     }
-        //                     else if (tx.DebitAccountId == accountId)
-        //                     {
-        //                         amount = tx.TotalDebit;
-        //                     }
-        //                     else if (tx.CreditAccountId == accountId)
-        //                     {
-        //                         amount = -tx.TotalCredit;
-        //                     }
-
-        //                     openingBalance += amount;
-        //                 }
-        //             }
-        //         }
-
-        //         return openingBalance;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, $"Error calculating opening balance for account {accountId}");
-        //         return 0;
-        //     }
-        // }
-
-        //-----------------------------------------------------end1
-
-
-        //     private async Task<decimal> CalculateOpeningBalanceAsync(
-        //  Guid companyId,
-        //  Guid accountId,
-        //  DateTime? fromDate,
-        //  InitialOpeningBalanceDTO initialOpeningBalance,
-        //  string? paymentMode)
-        //     {
-        //         try
-        //         {
-        //             // 1. Get the account with its account group
-        //             var account = await _context.Accounts
-        //                 .Include(a => a.AccountGroup)
-        //                 .FirstOrDefaultAsync(a => a.Id == accountId && a.CompanyId == companyId);
-
-        //             if (account == null)
-        //             {
-        //                 _logger.LogWarning($"Account {accountId} not found");
-        //                 return 0;
-        //             }
-
-        //             var accountGroupName = account.AccountGroup?.Name ?? string.Empty;
-
-        //             // ✅ Check if this is Cash in Hand account
-        //             bool isCashInHandAccount = accountGroupName == "Cash in Hand";
-
-        //             // 2. Check if this is a nominal account (should NOT have opening balance from previous fiscal year)
-        //             if (_nominalAccountGroups.Contains(accountGroupName))
-        //             {
-        //                 _logger.LogInformation($"Account {account.Name} is a nominal account. Opening balance starts from 0.");
-
-        //                 if (fromDate.HasValue)
-        //                 {
-        //                     var currentFiscalYear = await _context.FiscalYears
-        //                         .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
-
-        //                     if (currentFiscalYear != null)
-        //                     {
-        //                         var fiscalYearStart = currentFiscalYear.StartDate ?? DateTime.UtcNow;
-
-        //                         var openingBalanceQuery = _context.Transactions
-        //                             .Where(t => t.CompanyId == companyId &&
-        //                                        t.IsActive &&
-        //                                        t.FiscalYearId == currentFiscalYear.Id &&
-        //                                        t.Date.Date >= fiscalYearStart.Date &&
-        //                                        t.Date.Date < fromDate.Value.Date &&
-        //                                        (t.AccountId == accountId ||
-        //                                         t.PaymentAccountId2 == accountId ||
-        //                                         t.ReceiptAccountId2 == accountId ||
-        //                                         t.DebitAccountId == accountId ||
-        //                                         t.CreditAccountId == accountId));
-
-        //                         // Apply payment mode filter
-        //                         if (!string.IsNullOrEmpty(paymentMode))
-        //                         {
-        //                             if (paymentMode == "exclude-cash")
-        //                             {
-        //                                 openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode != PaymentMode.Cash);
-        //                             }
-        //                             else if (paymentMode == "cash")
-        //                             {
-        //                                 openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode == PaymentMode.Cash);
-        //                             }
-        //                         }
-
-        //                         var transactions = await openingBalanceQuery.ToListAsync();
-
-        //                         decimal balance = 0;
-        //                         foreach (var tx in transactions)
-        //                         {
-        //                             // ✅ For Cash in Hand account, include ALL cash transactions (do NOT skip)
-        //                             // For other accounts, skip cash transactions for Sale, Sales Return, Purchase, Purchase Return
-        //                             bool shouldSkip = false;
-        //                             if (!isCashInHandAccount)
-        //                             {
-        //                                 if (tx.PaymentMode == PaymentMode.Cash &&
-        //                                     (tx.Type == TransactionType.Sale ||
-        //                                      tx.Type == TransactionType.SlRt ||
-        //                                      tx.Type == TransactionType.Purc ||
-        //                                      tx.Type == TransactionType.PrRt))
-        //                                 {
-        //                                     // Skip these cash transactions for non-cash accounts
-        //                                     // unless the user selected "cash" mode specifically
-        //                                     if (paymentMode != "cash")
-        //                                     {
-        //                                         shouldSkip = true;
-        //                                     }
-        //                                 }
-        //                             }
-        //                             // For Cash in Hand account, we NEVER skip cash transactions
-
-        //                             if (shouldSkip)
-        //                             {
-        //                                 continue;
-        //                             }
-
-        //                             if (tx.AccountId == accountId)
-        //                             {
-        //                                 balance += tx.TotalDebit - tx.TotalCredit;
-        //                             }
-        //                             else if (tx.PaymentAccountId2 == accountId)
-        //                             {
-        //                                 balance -= tx.TotalCredit;
-        //                             }
-        //                             else if (tx.ReceiptAccountId2 == accountId)
-        //                             {
-        //                                 balance += tx.TotalDebit;
-        //                             }
-        //                             else if (tx.DebitAccountId == accountId)
-        //                             {
-        //                                 balance += tx.TotalDebit;
-        //                             }
-        //                             else if (tx.CreditAccountId == accountId)
-        //                             {
-        //                                 balance -= tx.TotalCredit;
-        //                             }
-        //                         }
-
-        //                         return balance;
-        //                     }
-        //                 }
-
-        //                 return 0;
-        //             }
-
-        //             // 3. For REAL accounts (Balance Sheet accounts), calculate opening balance
-        //             decimal openingBalance = initialOpeningBalance.Type == "Dr"
-        //                 ? initialOpeningBalance.Amount
-        //                 : -initialOpeningBalance.Amount;
-
-        //             _logger.LogInformation($"Account {account.Name} is a real account. Initial opening balance: {openingBalance}");
-
-        //             if (fromDate.HasValue)
-        //             {
-        //                 var fromDateOnly = fromDate.Value.Date;
-
-        //                 var openingBalanceQuery = _context.Transactions
-        //                     .Where(t => t.CompanyId == companyId &&
-        //                                t.IsActive &&
-        //                                t.Date.Date < fromDateOnly &&
-        //                                (t.AccountId == accountId ||
-        //                                 t.PaymentAccountId2 == accountId ||
-        //                                 t.ReceiptAccountId2 == accountId ||
-        //                                 t.DebitAccountId == accountId ||
-        //                                 t.CreditAccountId == accountId));
-
-        //                 // Apply payment mode filter
-        //                 if (!string.IsNullOrEmpty(paymentMode))
-        //                 {
-        //                     if (paymentMode == "exclude-cash")
-        //                     {
-        //                         openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode != PaymentMode.Cash);
-        //                     }
-        //                     else if (paymentMode == "cash")
-        //                     {
-        //                         openingBalanceQuery = openingBalanceQuery.Where(t => t.PaymentMode == PaymentMode.Cash);
-        //                     }
-        //                 }
-
-        //                 var transactionsBeforeFromDate = await openingBalanceQuery
-        //                     .OrderBy(t => t.Date)
-        //                     .ThenBy(t => t.CreatedAt)
-        //                     .ToListAsync();
-
-        //                 var processedTransactions = new HashSet<string>();
-
-        //                 foreach (var tx in transactionsBeforeFromDate)
-        //                 {
-        //                     var txIdentifier = $"{tx.Date}-{tx.Type}-{tx.BillNumber}-{tx.TotalDebit}-{tx.TotalCredit}";
-
-        //                     if (!processedTransactions.Contains(txIdentifier))
-        //                     {
-        //                         processedTransactions.Add(txIdentifier);
-
-        //                         // ✅ For Cash in Hand account, include ALL cash transactions (do NOT skip)
-        //                         // For other accounts, skip cash transactions for Sale, Sales Return, Purchase, Purchase Return
-        //                         bool shouldSkip = false;
-        //                         if (!isCashInHandAccount)
-        //                         {
-        //                             if (tx.PaymentMode == PaymentMode.Cash &&
-        //                                 (tx.Type == TransactionType.Sale ||
-        //                                  tx.Type == TransactionType.SlRt ||
-        //                                  tx.Type == TransactionType.Purc ||
-        //                                  tx.Type == TransactionType.PrRt))
-        //                             {
-        //                                 // Skip these cash transactions for non-cash accounts
-        //                                 // unless the user selected "cash" mode specifically
-        //                                 if (paymentMode != "cash")
-        //                                 {
-        //                                     shouldSkip = true;
-        //                                 }
-        //                             }
-        //                         }
-        //                         // For Cash in Hand account, we NEVER skip cash transactions
-
-        //                         if (shouldSkip)
-        //                         {
-        //                             continue;
-        //                         }
-
-        //                         decimal amount = 0;
-
-        //                         if (tx.AccountId == accountId)
-        //                         {
-        //                             amount = tx.TotalDebit - tx.TotalCredit;
-        //                         }
-        //                         else if (tx.PaymentAccountId2 == accountId)
-        //                         {
-        //                             amount = -tx.TotalCredit;
-        //                         }
-        //                         else if (tx.ReceiptAccountId2 == accountId)
-        //                         {
-        //                             amount = tx.TotalDebit;
-        //                         }
-        //                         else if (tx.DebitAccountId == accountId)
-        //                         {
-        //                             amount = tx.TotalDebit;
-        //                         }
-        //                         else if (tx.CreditAccountId == accountId)
-        //                         {
-        //                             amount = -tx.TotalCredit;
-        //                         }
-
-        //                         openingBalance += amount;
-        //                     }
-        //                 }
-        //             }
-
-        //             return openingBalance;
-        //         }
-        //         catch (Exception ex)
-        //         {
-        //             _logger.LogError(ex, $"Error calculating opening balance for account {accountId}");
-        //             return 0;
-        //         }
-        //     }
-
-        //----------------------------------------------------end2
-
         private async Task<decimal> CalculateOpeningBalanceAsync(
             Guid companyId,
             Guid accountId,
@@ -1197,97 +734,10 @@ namespace SkyForge.Services.Retailer.StatementServices
                     CashSettlementStatus = null,
                     CashSettlementDate = null,
                     CashSettlementUserName = null,
-                    CashSettlementRemarks = null
+                    CashSettlementRemarks = null,
+                    CashSettlementAmount = null,
                 });
             }
-
-            // Group transactions by bill ID to avoid duplicates
-            // var transactionsByBill = new Dictionary<string, Transaction>();
-
-            // foreach (var tx in transactions)
-            // {
-            //     string billId = tx.PaymentAccountId?.ToString() ??
-            //                    tx.ReceiptAccountId?.ToString() ??
-            //                    tx.JournalBillId?.ToString() ??
-            //                    tx.DebitNoteId?.ToString() ??
-            //                    tx.PurchaseBillId?.ToString() ??
-            //                    tx.PurchaseReturnBillId?.ToString() ??
-            //                    tx.SalesBillId?.ToString() ??
-            //                    tx.SalesReturnBillId?.ToString() ??
-            //                    tx.CreditNoteId?.ToString() ??
-            //                    tx.Id.ToString();
-
-            //     if (!transactionsByBill.ContainsKey(billId))
-            //     {
-            //         // Store the full transaction with all its properties
-            //         transactionsByBill[billId] = tx;
-            //     }
-            //     else
-            //     {
-            //         var existing = transactionsByBill[billId];
-            //         existing.TotalDebit = existing.TotalDebit + tx.TotalDebit;
-            //         existing.TotalCredit = existing.TotalCredit + tx.TotalCredit;
-            //         // IMPORTANT: Keep the cash settlement status from the original transaction
-            //         // Don't override it with null or empty
-            //         if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
-            //         {
-            //             existing.CashSettlementStatus = tx.CashSettlementStatus;
-            //             existing.CashSettlementDate = tx.CashSettlementDate;
-            //             existing.CashSettlementUserId = tx.CashSettlementUserId;
-            //             existing.CashSettlementUser = tx.CashSettlementUser;
-            //             existing.CashSettlementRemarks = tx.CashSettlementRemarks;
-            //         }
-            //     }
-            // }
-
-
-            // Group transactions by bill ID to avoid duplicates
-            // var transactionsByBill = new Dictionary<string, Transaction>();
-
-            // foreach (var tx in transactions)
-            // {
-            //     string billId = tx.PaymentAccountId?.ToString() ??
-            //                    tx.ReceiptAccountId?.ToString() ??
-            //                    tx.JournalBillId?.ToString() ??
-            //                    tx.DebitNoteId?.ToString() ??
-            //                    tx.PurchaseBillId?.ToString() ??
-            //                    tx.PurchaseReturnBillId?.ToString() ??
-            //                    tx.SalesBillId?.ToString() ??
-            //                    tx.SalesReturnBillId?.ToString() ??
-            //                    tx.CreditNoteId?.ToString() ??
-            //                    tx.Id.ToString();
-
-            //     // ✅ For journals, do NOT merge multiple lines into one.
-            //     // Each transaction line is its own accounting entry and must
-            //     // contribute independently to the balance.
-            //     if (tx.Type == TransactionType.Jrnl)
-            //     {
-            //         // Use the transaction's own Id as the key so each line stays
-            //         // separate in the statement.
-            //         transactionsByBill[tx.Id.ToString()] = tx;
-            //         continue;
-            //     }
-
-            //     // Non-journal types keep the existing dedupe behaviour
-            //     if (!transactionsByBill.ContainsKey(billId))
-            //     {
-            //         transactionsByBill[billId] = tx;
-            //     }
-            //     else
-            //     {
-            //         var existing = transactionsByBill[billId];
-            //         existing.TotalDebit = existing.TotalDebit + tx.TotalDebit;
-            //         existing.TotalCredit = existing.TotalCredit + tx.TotalCredit;
-            //         if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
-            //         {
-            //             existing.CashSettlementStatus = tx.CashSettlementStatus;
-            //             existing.CashSettlementDate = tx.CashSettlementDate;
-            //             existing.CashSettlementUserId = tx.CashSettlementUserId;
-            //             existing.CashSettlementUser = tx.CashSettlementUser;
-            //             existing.CashSettlementRemarks = tx.CashSettlementRemarks;
-            //         }
-            //     }
-            // }
 
             var transactionsByBill = new Dictionary<string, Transaction>();
 
@@ -1369,7 +819,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                             CashSettlementDate = tx.CashSettlementDate,
                             CashSettlementUserId = tx.CashSettlementUserId,
                             CashSettlementUser = tx.CashSettlementUser,
-                            CashSettlementRemarks = tx.CashSettlementRemarks
+                            CashSettlementRemarks = tx.CashSettlementRemarks,
+                            CashSettlementAmount = tx.CashSettlementAmount,
                         };
                     }
                     else
@@ -1388,6 +839,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                             existing.CashSettlementUserId = tx.CashSettlementUserId;
                             existing.CashSettlementUser = tx.CashSettlementUser;
                             existing.CashSettlementRemarks = tx.CashSettlementRemarks;
+                            existing.CashSettlementAmount = tx.CashSettlementAmount;
                         }
                     }
 
@@ -1414,6 +866,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                         existing.CashSettlementUserId = tx.CashSettlementUserId;
                         existing.CashSettlementUser = tx.CashSettlementUser;
                         existing.CashSettlementRemarks = tx.CashSettlementRemarks;
+                        existing.CashSettlementAmount = tx.CashSettlementAmount;
                     }
                 }
             }
@@ -1468,6 +921,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                 DateTime? cashSettlementDate = tx.CashSettlementDate;
                 string cashSettlementRemarks = tx.CashSettlementRemarks ?? string.Empty;
                 string cashSettlementUserName = tx.CashSettlementUser?.Name ?? string.Empty;
+                decimal? cashSettlementAmount = tx.CashSettlementAmount;
 
                 // For cash transactions on Sundry Debtors/Creditors, create TWO entries
                 if (isCashTransaction && isSundryAccount)
@@ -1547,7 +1001,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                         CashSettlementStatus = cashSettlementStatus,
                         CashSettlementDate = cashSettlementDate,
                         CashSettlementUserName = cashSettlementUserName,
-                        CashSettlementRemarks = cashSettlementRemarks
+                        CashSettlementRemarks = cashSettlementRemarks,
+                        CashSettlementAmount = cashSettlementAmount,
                     });
 
                     // ENTRY 2: The cash received/paid entry
@@ -1555,12 +1010,13 @@ namespace SkyForge.Services.Retailer.StatementServices
                     string paymentDirection2 = string.Empty;
                     decimal secondDebit = 0;
                     decimal secondCredit = 0;
-
+                    decimal actualCashAmount = tx.CashSettlementAmount ?? debitAmount;
+                    
                     if (tx.Type == TransactionType.Sale)
                     {
                         accountType2 = "Cash Received";
                         paymentDirection2 = "Received";
-                        secondCredit = debitAmount;
+                        secondCredit = actualCashAmount;
                     }
                     else if (tx.Type == TransactionType.Purc)
                     {
@@ -1614,7 +1070,8 @@ namespace SkyForge.Services.Retailer.StatementServices
                         CashSettlementStatus = cashSettlementStatus,
                         CashSettlementDate = cashSettlementDate,
                         CashSettlementUserName = cashSettlementUserName,
-                        CashSettlementRemarks = cashSettlementRemarks
+                        CashSettlementRemarks = cashSettlementRemarks,
+                        CashSettlementAmount = cashSettlementAmount,
                     });
                 }
                 else

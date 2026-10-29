@@ -130,10 +130,13 @@ namespace SkyForge.Dto.RetailerDto.TransactionDto
         public DateTime? CashSettlementDate { get; set; }
         public string? CashSettlementUserName { get; set; }
         public string? CashSettlementRemarks { get; set; }
+        public decimal? CashSettlementAmount { get; set; }
         public bool IsCashSettled => CashSettlementStatus == "Received" ||
                                   CashSettlementStatus == "Paid" ||
+                                  CashSettlementStatus == "Partial" ||
                                   CashSettlementStatus == "Refunded" ||
                                   CashSettlementStatus == "Returned";
+
     }
 
     public class PaymentAccountDTO

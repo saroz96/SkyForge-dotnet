@@ -508,7 +508,7 @@ const Statement = () => {
             selectedAccountPhone: account.phone || ''
         }));
         setShowAccountModal(false);
-         setSelectedAccountId(account.id);
+        setSelectedAccountId(account.id);
         setAccountSearchQuery('');
         setTimeout(() => fromDateRef.current?.focus(), 50);
     };
@@ -560,10 +560,42 @@ const Statement = () => {
     };
 
     // --- Cash Settlement ---
-    const handleCashSettlement = async (transactionId, status, remarks) => {
+    // const handleCashSettlement = async (transactionId, status, remarks) => {
+    //     if (!transactionId) { setNotification({ show: true, message: 'Transaction ID is required', type: 'error' }); return; }
+    //     try {
+    //         const response = await api.put(`/api/retailer/transaction/${transactionId}/cash-settlement`, { status, remarks });
+    //         if (response.data.success) {
+    //             setData(prev => ({
+    //                 ...prev,
+    //                 statement: prev.statement.map(item => {
+    //                     let itemId = null;
+    //                     switch (item.type) {
+    //                         case 'Sale': itemId = item.salesBillId; break;
+    //                         case 'Purc': itemId = item.purchaseBillId; break;
+    //                         case 'SlRt': itemId = item.salesReturnBillId; break;
+    //                         case 'PrRt': itemId = item.purchaseReturnBillId; break;
+    //                         default: itemId = item.billId || item.id;
+    //                     }
+    //                     if (itemId === transactionId) return { ...item, cashSettlementStatus: status, cashSettlementDate: response.data.data.date, cashSettlementUserName: response.data.data.user, cashSettlementRemarks: remarks, isCashSettled: ['Received', 'Paid', 'Refunded', 'Returned'].includes(status) };
+    //                     return item;
+    //                 })
+    //             }));
+    //             setNotification({ show: true, message: response.data.message, type: 'success' });
+    //             setShowCashSettlementModal(false);
+    //         }
+    //     } catch (error) { setNotification({ show: true, message: error.response?.data?.error || 'Failed to update cash settlement', type: 'error' }); }
+    // };
+
+    // --- Cash Settlement ---
+    const handleCashSettlement = async (transactionId, status, remarks, amount) => {
         if (!transactionId) { setNotification({ show: true, message: 'Transaction ID is required', type: 'error' }); return; }
         try {
-            const response = await api.put(`/api/retailer/transaction/${transactionId}/cash-settlement`, { status, remarks });
+            // ✅ Send the amount field
+            const response = await api.put(`/api/retailer/transaction/${transactionId}/cash-settlement`, {
+                status,
+                remarks,
+                amount: parseFloat(amount) || 0
+            });
             if (response.data.success) {
                 setData(prev => ({
                     ...prev,
@@ -576,14 +608,26 @@ const Statement = () => {
                             case 'PrRt': itemId = item.purchaseReturnBillId; break;
                             default: itemId = item.billId || item.id;
                         }
-                        if (itemId === transactionId) return { ...item, cashSettlementStatus: status, cashSettlementDate: response.data.data.date, cashSettlementUserName: response.data.data.user, cashSettlementRemarks: remarks, isCashSettled: ['Received', 'Paid', 'Refunded', 'Returned'].includes(status) };
+                        if (itemId === transactionId) {
+                            return {
+                                ...item,
+                                cashSettlementStatus: status,
+                                cashSettlementDate: response.data.data.date,
+                                cashSettlementUserName: response.data.data.user,
+                                cashSettlementRemarks: remarks,
+                                cashSettlementAmount: amount, // ✅ Update UI state with new amount
+                                isCashSettled: ['Received', 'Paid', 'Refunded', 'Returned'].includes(status)
+                            };
+                        }
                         return item;
                     })
                 }));
                 setNotification({ show: true, message: response.data.message, type: 'success' });
                 setShowCashSettlementModal(false);
             }
-        } catch (error) { setNotification({ show: true, message: error.response?.data?.error || 'Failed to update cash settlement', type: 'error' }); }
+        } catch (error) {
+            setNotification({ show: true, message: error.response?.data?.error || 'Failed to update cash settlement', type: 'error' });
+        }
     };
 
     const handleCashSettlementClick = (item) => {
@@ -1090,13 +1134,26 @@ const Statement = () => {
                 </div>
 
                 {/* Credit Column */}
-                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
+                {/* <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
                     <span style={{
                         fontSize: '0.75rem',
                         color: item.credit > 0 ? (showCashEntry ? '#dc3545' : '#000') : 'inherit',
                         fontWeight: showCashEntry ? '600' : 'normal'
                     }}>
                         {item.credit > 0 ? formatCurrency(item.credit) : '-'}
+                    </span>
+                </div> */}
+
+                <div className="d-flex align-items-center justify-content-end px-1 border-end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0, height: '100%' }}>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        color: item.credit > 0 ? (showCashEntry ? '#dc3545' : '#000') : 'inherit',
+                        fontWeight: showCashEntry ? '600' : 'normal'
+                    }}>
+                        {/* ✅ If it's a cash entry and has a settlement amount, show that. Otherwise show standard credit. */}
+                        {showCashEntry && item.cashSettlementAmount > 0
+                            ? formatCurrency(item.cashSettlementAmount)
+                            : (item.credit > 0 ? formatCurrency(item.credit) : '-')}
                     </span>
                 </div>
 

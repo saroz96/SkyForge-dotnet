@@ -16,7 +16,7 @@ import api, { refreshToken } from '../../services/api';
 import AccountModalForSales from './AccountModalForSales';
 import StockAdjustmentModal from './StockAdjustmentModal';
 import convertToRupeesAndPaisaNepali from '../../common/convertToRupeesAndPaisaNepali'
-
+import CashBillSettlementModal from './CashBillSettlementModal';
 
 // Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
@@ -256,6 +256,13 @@ const AddSales = () => {
     const [printAfterSave, setPrintAfterSave] = useState(
         localStorage.getItem('printAfterSaveSales') === 'true' || false
     );
+    const [cashSettlement, setCashSettlement] = useState({
+        type: 'full',              // 'full' | 'partial'
+        receivedAmount: 0,
+        remainingAmount: 0,
+        remarks: ''
+    });
+
     // Add near your other state declarations (around line 100-120)
     const [useVoucherLastDateForSales, setUseVoucherLastDateForSales] = useState(false);
     const [lastSalesDate, setLastSalesDate] = useState(null);
@@ -300,7 +307,8 @@ const AddSales = () => {
 
     const [roundOffSales, setRoundOffSales] = useState(false);
     const [manualRoundOffOverride, setManualRoundOffOverride] = useState(false);
-
+    const [showCashSettlementModal, setShowCashSettlementModal] = useState(false);
+    const [pendingSubmitPrint, setPendingSubmitPrint] = useState(false);
     // For header modal search
     const [isHeaderSearching, setIsHeaderSearching] = useState(false);
     const [headerSearchResults, setHeaderSearchResults] = useState([]);
@@ -1425,235 +1433,6 @@ const AddSales = () => {
         }
     };
 
-    // const selectItemForInsert = async (item) => {
-    //     if (headerSearchQuery.trim() !== '') {
-    //         setHeaderLastSearchQuery(headerSearchQuery);
-    //         setHeaderShouldShowLastSearchResults(true);
-    //     } else if (headerShouldShowLastSearchResults && headerLastSearchQuery) {
-    //         setHeaderShouldShowLastSearchResults(true);
-    //     }
-    //     setHeaderSearchQuery('');
-
-    //     console.log('selectItemForInsert called with item:', item.id);
-    //     console.log('currentViewingItemId set to:', item.id);
-    //     console.log('transactionSettings.displayTransactions:', transactionSettings.displayTransactions);
-    //     console.log('formData.accountId:', formData.accountId);
-
-    //     setShowHeaderItemModal(false);
-    //     setSelectedItemForInsert(item);
-    //     setCurrentViewingItemId(item.id);
-    //     setTransactionType('sales');
-
-    //     // Use latestPrice which now includes last sales price for out-of-stock items
-    //     setSelectedItemRate(item.latestPrice || 0);
-
-    //     if (item.stockEntries && item.stockEntries.length > 0) {
-    //         // Sort by date for FIFO (oldest first)
-    //         const sortedStockEntries = [...(item.stockEntries || [])].sort((a, b) =>
-    //             new Date(a.date) - new Date(b.date)
-    //         );
-    //         const firstStockEntry = sortedStockEntries[0];
-    //         setSelectedItemBatchNumber(firstStockEntry.batchNumber || '');
-
-    //         let expiryDate = '';
-    //         if (item.firstExpiryDate) {
-    //             expiryDate = item.firstExpiryDate;
-    //         } else if (firstStockEntry.expiryDate) {
-    //             if (firstStockEntry.expiryDate instanceof Date) {
-    //                 expiryDate = firstStockEntry.expiryDate.toISOString().split('T')[0];
-    //             } else if (typeof firstStockEntry.expiryDate === 'string') {
-    //                 try {
-    //                     const parsedDate = new Date(firstStockEntry.expiryDate);
-    //                     if (!isNaN(parsedDate.getTime())) {
-    //                         expiryDate = parsedDate.toISOString().split('T')[0];
-    //                     }
-    //                 } catch (error) {
-    //                     console.error('Error parsing expiry date:', error);
-    //                 }
-    //             }
-    //         }
-    //         setSelectedItemExpiryDate(expiryDate);
-    //     } else {
-    //         // For out-of-stock items with no stock entries, clear batch and expiry
-    //         setSelectedItemBatchNumber('');
-    //         setSelectedItemExpiryDate('');
-    //     }
-
-    //     let hasTransactions = false;
-
-    //     if (transactionSettings.displayTransactions && formData.accountId) {
-    //         const cacheKey = `${item.id}-${formData.accountId}`;
-
-    //         if (transactionCache.has(cacheKey)) {
-    //             const cachedTransactions = transactionCache.get(cacheKey);
-    //             if (cachedTransactions.length > 0) {
-    //                 setTransactions(cachedTransactions);
-    //                 setShowTransactionModal(true);
-    //                 hasTransactions = true;
-    //             }
-    //         }
-
-    //         if (!hasTransactions) {
-    //             try {
-    //                 setIsLoadingTransactions(true);
-    //                 setIsHeaderInsertMode(true);
-
-    //                 const controller = new AbortController();
-    //                 const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    //                 const response = await api.get(`/api/retailer/transactions/${item.id}/${formData.accountId}/Sales`, {
-    //                     signal: controller.signal
-    //                 });
-
-    //                 clearTimeout(timeoutId);
-
-    //                 if (response.data.success && response.data.data.transactions.length > 0) {
-    //                     setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
-    //                     setTransactions(response.data.data.transactions);
-    //                     setShowTransactionModal(true);
-    //                     hasTransactions = true;
-    //                 }
-    //             } catch (error) {
-    //                 if (error.name !== 'AbortError') {
-    //                     console.error('Error fetching transactions:', error);
-    //                 }
-    //             } finally {
-    //                 setIsLoadingTransactions(false);
-    //             }
-    //         }
-    //     }
-
-    //     if (!hasTransactions) {
-    //         setTimeout(() => {
-    //             const quantityInput = document.getElementById('selectedItemQuantity');
-    //             if (quantityInput) {
-    //                 quantityInput.focus();
-    //                 quantityInput.select();
-    //             }
-    //         }, 100);
-    //     }
-    // };
-
-
-    // const selectItemForInsert = async (item) => {
-    //     if (headerSearchQuery.trim() !== '') {
-    //         setHeaderLastSearchQuery(headerSearchQuery);
-    //         setHeaderShouldShowLastSearchResults(true);
-    //     } else if (headerShouldShowLastSearchResults && headerLastSearchQuery) {
-    //         setHeaderShouldShowLastSearchResults(true);
-    //     }
-    //     setHeaderSearchQuery('');
-
-    //     console.log('selectItemForInsert called with item:', item.id);
-    //     console.log('currentViewingItemId set to:', item.id);
-    //     console.log('transactionSettings.displayTransactions:', transactionSettings.displayTransactions);
-    //     console.log('formData.accountId:', formData.accountId);
-
-    //     setShowHeaderItemModal(false);
-    //     setSelectedItemForInsert(item);
-    //     setCurrentViewingItemId(item.id);
-    //     setTransactionType('sales');
-
-    //     // Use latestPrice which now includes last sales price for out-of-stock items
-    //     setSelectedItemRate(item.latestPrice || 0);
-
-    //     // Check if item has stock
-    //     const totalStock = item.stockEntries?.reduce((sum, entry) => sum + (entry.quantity || 0), 0) || 0;
-
-    //     if (totalStock === 0) {
-    //         // No stock - show the Stock Adjustment Modal
-    //         setSelectedItemForStockAdjustment(item);
-    //         setShowStockAdjustmentModal(true);
-    //         return;
-    //     }
-
-    //     if (item.stockEntries && item.stockEntries.length > 0) {
-    //         // Sort by date for FIFO (oldest first)
-    //         const sortedStockEntries = [...(item.stockEntries || [])].sort((a, b) =>
-    //             new Date(a.date) - new Date(b.date)
-    //         );
-    //         const firstStockEntry = sortedStockEntries[0];
-    //         setSelectedItemBatchNumber(firstStockEntry.batchNumber || '');
-
-    //         let expiryDate = '';
-    //         if (item.firstExpiryDate) {
-    //             expiryDate = item.firstExpiryDate;
-    //         } else if (firstStockEntry.expiryDate) {
-    //             if (firstStockEntry.expiryDate instanceof Date) {
-    //                 expiryDate = firstStockEntry.expiryDate.toISOString().split('T')[0];
-    //             } else if (typeof firstStockEntry.expiryDate === 'string') {
-    //                 try {
-    //                     const parsedDate = new Date(firstStockEntry.expiryDate);
-    //                     if (!isNaN(parsedDate.getTime())) {
-    //                         expiryDate = parsedDate.toISOString().split('T')[0];
-    //                     }
-    //                 } catch (error) {
-    //                     console.error('Error parsing expiry date:', error);
-    //                 }
-    //             }
-    //         }
-    //         setSelectedItemExpiryDate(expiryDate);
-    //     } else {
-    //         // For out-of-stock items with no stock entries, clear batch and expiry
-    //         setSelectedItemBatchNumber('');
-    //         setSelectedItemExpiryDate('');
-    //     }
-
-    //     let hasTransactions = false;
-
-    //     if (transactionSettings.displayTransactions && formData.accountId) {
-    //         const cacheKey = `${item.id}-${formData.accountId}`;
-
-    //         if (transactionCache.has(cacheKey)) {
-    //             const cachedTransactions = transactionCache.get(cacheKey);
-    //             if (cachedTransactions.length > 0) {
-    //                 setTransactions(cachedTransactions);
-    //                 setShowTransactionModal(true);
-    //                 hasTransactions = true;
-    //             }
-    //         }
-
-    //         if (!hasTransactions) {
-    //             try {
-    //                 setIsLoadingTransactions(true);
-    //                 setIsHeaderInsertMode(true);
-
-    //                 const controller = new AbortController();
-    //                 const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    //                 const response = await api.get(`/api/retailer/transactions/${item.id}/${formData.accountId}/Sales`, {
-    //                     signal: controller.signal
-    //                 });
-
-    //                 clearTimeout(timeoutId);
-
-    //                 if (response.data.success && response.data.data.transactions.length > 0) {
-    //                     setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
-    //                     setTransactions(response.data.data.transactions);
-    //                     setShowTransactionModal(true);
-    //                     hasTransactions = true;
-    //                 }
-    //             } catch (error) {
-    //                 if (error.name !== 'AbortError') {
-    //                     console.error('Error fetching transactions:', error);
-    //                 }
-    //             } finally {
-    //                 setIsLoadingTransactions(false);
-    //             }
-    //         }
-    //     }
-
-    //     if (!hasTransactions) {
-    //         setTimeout(() => {
-    //             const quantityInput = document.getElementById('selectedItemQuantity');
-    //             if (quantityInput) {
-    //                 quantityInput.focus();
-    //                 quantityInput.select();
-    //             }
-    //         }, 100);
-    //     }
-    // };
-
     const selectItemForInsert = async (item) => {
         if (headerSearchQuery.trim() !== '') {
             setHeaderLastSearchQuery(headerSearchQuery);
@@ -2653,6 +2432,14 @@ const AddSales = () => {
 
             setNextBillNumber(currentBillNum);
             setItems([]);
+            setCashSettlement({
+                type: 'full',
+                receivedAmount: 0,
+                remainingAmount: 0,
+                remarks: ''
+            });
+            setShowCashSettlementModal(false);
+            setPendingSubmitPrint(false);
             clearSalesDraft();
 
             setHeaderSearchQuery('');
@@ -2767,6 +2554,14 @@ const AddSales = () => {
 
             setNextBillNumber(currentBillNum);
             setItems([]);
+            setCashSettlement({
+                type: 'full',
+                receivedAmount: 0,
+                remainingAmount: 0,
+                remarks: ''
+            });
+            setShowCashSettlementModal(false);
+            setPendingSubmitPrint(false);
             clearSalesDraft();
 
             setHeaderSearchQuery('');
@@ -2796,37 +2591,157 @@ const AddSales = () => {
         }
     };
 
-    const handleSubmit = async (e, print = false) => {
-        e.preventDefault();
 
-        const isValid = validateAllQuantities();
-        if (!isValid) {
-            setNotification({
-                show: true,
-                message: 'Please fix quantity errors before submitting',
-                type: 'error'
-            });
+    // const handleSubmit = async (e, print = false) => {
+    //     e.preventDefault();
 
-            const firstErrorIndex = Object.keys(quantityErrors)[0];
-            if (firstErrorIndex !== undefined) {
-                setTimeout(() => {
-                    document.getElementById(`quantity-${firstErrorIndex}`)?.focus();
-                }, 100);
-            }
+    //     const isValid = validateAllQuantities();
+    //     if (!isValid) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please fix quantity errors before submitting',
+    //             type: 'error'
+    //         });
 
-            return;
-        }
+    //         const firstErrorIndex = Object.keys(quantityErrors)[0];
+    //         if (firstErrorIndex !== undefined) {
+    //             setTimeout(() => {
+    //                 document.getElementById(`quantity-${firstErrorIndex}`)?.focus();
+    //             }, 100);
+    //         }
+
+    //         return;
+    //     }
+    //     setIsSaving(true);
+
+    //     try {
+    //         const calculatedValues = calculateTotal();
+
+    //         const parseDate = (dateString) => {
+    //             if (!dateString) return new Date().toISOString();
+
+    //             // If it's already a valid date string in YYYY-MM-DD format
+    //             if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    //                 // Create date at UTC to avoid timezone issues
+    //                 const date = new Date(dateString);
+    //                 date.setUTCHours(0, 0, 0, 0);
+    //                 return date.toISOString();
+    //             }
+    //             return new Date(dateString).toISOString();
+    //         };
+
+    //         let accountData = {};
+    //         if (formData.paymentMode === 'cash') {
+    //             if (isManualAccountEntry || !formData.accountId) {
+    //                 // === FIX: Cash mode with manual entry - use Cash in Hand account ID ===
+    //                 accountData = {
+    //                     accountId: cashInHandAccountId, // Use the Cash in Hand account ID
+    //                     cashAccount: formData.accountName, // Store the entered name for display
+    //                     cashAccountAddress: formData.accountAddress || null,
+    //                     cashAccountPan: formData.accountPan || null,
+    //                     cashAccountEmail: formData.accountEmail || null,
+    //                     cashAccountPhone: formData.accountPhone || formData.phone || null
+    //                 };
+    //                 console.log('Manual cash entry - using Cash in Hand account ID:', cashInHandAccountId);
+    //             } else {
+    //                 // Cash mode with existing account - send account ID
+    //                 accountData = {
+    //                     accountId: formData.accountId,
+    //                     cashAccount: formData.accountName,
+    //                     cashAccountAddress: formData.accountAddress || null,
+    //                     cashAccountPan: formData.accountPan || null,
+    //                     cashAccountEmail: formData.accountEmail || null,
+    //                     cashAccountPhone: formData.accountPhone || formData.phone || null,
+    //                     cashSettlementType: cashSettlement.type,
+    //                     cashReceivedAmount: cashSettlement.type === 'full'
+    //                         ? calculatedValues.totalAmount
+    //                         : parseFloat(cashSettlement.receivedAmount) || 0,
+    //                     cashSettlementRemarks: cashSettlement.remarks || null
+    //                 };
+    //             }
+    //         } else {
+    //             // Credit mode - send account ID
+    //             accountData = {
+    //                 accountId: formData.accountId
+    //             };
+    //         }
+
+    //         const billData = {
+    //             // accountId: formData.accountId,
+    //             ...accountData,
+    //             paymentMode: formData.paymentMode,
+    //             isVatExempt: formData.isVatExempt,
+    //             discountPercentage: formData.discountPercentage,
+    //             discountAmount: formData.discountAmount,
+    //             vatPercentage: formData.vatPercentage,
+    //             vatAmount: calculatedValues.vatAmount,
+    //             roundOffAmount: calculatedValues.roundOffAmount,
+    //             subTotal: calculatedValues.subTotal,
+    //             taxableAmount: calculatedValues.taxableAmount,
+    //             nonVatSales: calculatedValues.nonTaxableAmount,
+    //             totalAmount: calculatedValues.totalAmount,
+    //             nepaliDate: formData.nepaliDate,
+    //             date: parseDate(formData.billDate),
+    //             transactionDateNepali: formData.transactionDateNepali,
+    //             transactionDate: parseDate(formData.transactionDateRoman),
+    //             purchaseSalesType: "Sales",
+    //             originalCopies: 1,
+    //             items: items.map(item => ({
+    //                 itemId: item.itemId,
+    //                 batchNumber: item.batchNumber,
+    //                 expiryDate: item.expiryDate,
+    //                 quantity: item.quantity,
+    //                 unitId: item.unitId,
+    //                 price: item.price,
+    //                 puPrice: item.puPrice,
+    //                 mrp: item.mrp,
+    //                 netPuPrice: item.netPuPrice,
+    //                 vatStatus: item.vatStatus,
+    //                 uniqueUuid: item.uniqueUuid,
+    //                 purchaseBillId: item.purchaseBillId
+    //             })),
+    //             print
+    //         };
+
+    //         const response = await api.post('/api/retailer/sales', billData);
+
+    //         setTransactionCache(new Map());
+
+    //         setNotification({
+    //             show: true,
+    //             message: 'Sales bill saved successfully!',
+    //             type: 'success'
+    //         });
+
+    //         if ((print || printAfterSave) && response.data.data?.bill?._id) {
+    //             setItems([]);
+    //             setIsSaving(false);
+    //             await printImmediately(response.data.data.bill._id);
+    //             await resetAfterSave();
+    //         } else {
+    //             await resetAfterSave();
+    //             setIsSaving(false);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error saving sales bill:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: error.response?.data?.error || 'Failed to save sales bill. Please try again.',
+    //             type: 'error'
+    //         });
+    //         setIsSaving(false);
+    //     }
+    // };
+
+    // Extract the actual POST into its own fn so both paths can call it
+    const doSaveBill = async (print, settlementOverride = null) => {
         setIsSaving(true);
-
         try {
             const calculatedValues = calculateTotal();
 
             const parseDate = (dateString) => {
                 if (!dateString) return new Date().toISOString();
-
-                // If it's already a valid date string in YYYY-MM-DD format
                 if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-                    // Create date at UTC to avoid timezone issues
                     const date = new Date(dateString);
                     date.setUTCHours(0, 0, 0, 0);
                     return date.toISOString();
@@ -2834,57 +2749,31 @@ const AddSales = () => {
                 return new Date(dateString).toISOString();
             };
 
-            // Prepare account data based on payment mode
-            // let accountData = {};
-            // if (formData.paymentMode === 'cash' && (isManualAccountEntry || !formData.accountId)) {
-            //     // Cash mode with manual entry - send account details directly
-            //     accountData = {
-            //         accountName: formData.accountName,
-            //         accountAddress: formData.accountAddress || null,
-            //         accountPan: formData.accountPan || null,
-            //         accountEmail: formData.accountEmail || null,
-            //         accountPhone: formData.accountPhone || null
-            //     };
-            // } else {
-            //     // Credit mode or cash mode with existing account - send account ID
-            //     accountData = {
-            //         accountId: formData.accountId
-            //     };
-            // }
-
             let accountData = {};
             if (formData.paymentMode === 'cash') {
-                if (isManualAccountEntry || !formData.accountId) {
-                    // === FIX: Cash mode with manual entry - use Cash in Hand account ID ===
-                    accountData = {
-                        accountId: cashInHandAccountId, // Use the Cash in Hand account ID
-                        cashAccount: formData.accountName, // Store the entered name for display
-                        cashAccountAddress: formData.accountAddress || null,
-                        cashAccountPan: formData.accountPan || null,
-                        cashAccountEmail: formData.accountEmail || null,
-                        cashAccountPhone: formData.accountPhone || formData.phone || null
-                    };
-                    console.log('Manual cash entry - using Cash in Hand account ID:', cashInHandAccountId);
-                } else {
-                    // Cash mode with existing account - send account ID
-                    accountData = {
-                        accountId: formData.accountId,
-                        cashAccount: formData.accountName,
-                        cashAccountAddress: formData.accountAddress || null,
-                        cashAccountPan: formData.accountPan || null,
-                        cashAccountEmail: formData.accountEmail || null,
-                        cashAccountPhone: formData.accountPhone || formData.phone || null
-                    };
-                }
-            } else {
-                // Credit mode - send account ID
+                const settlement = settlementOverride || cashSettlement || { type: 'full' };
+                const receivedAmount = settlement.type === 'full'
+                    ? calculatedValues.totalAmount
+                    : parseFloat(settlement.receivedAmount) || 0;
+
                 accountData = {
-                    accountId: formData.accountId
+                    accountId: (isManualAccountEntry || !formData.accountId)
+                        ? cashInHandAccountId
+                        : formData.accountId,
+                    cashAccount: formData.accountName,
+                    cashAccountAddress: formData.accountAddress || null,
+                    cashAccountPan: formData.accountPan || null,
+                    cashAccountEmail: formData.accountEmail || null,
+                    cashAccountPhone: formData.accountPhone || formData.phone || null,
+                    cashSettlementType: settlement.type,
+                    cashReceivedAmount: receivedAmount,
+                    cashSettlementRemarks: settlement.remarks || null
                 };
+            } else {
+                accountData = { accountId: formData.accountId };
             }
 
             const billData = {
-                // accountId: formData.accountId,
                 ...accountData,
                 paymentMode: formData.paymentMode,
                 isVatExempt: formData.isVatExempt,
@@ -2901,7 +2790,7 @@ const AddSales = () => {
                 date: parseDate(formData.billDate),
                 transactionDateNepali: formData.transactionDateNepali,
                 transactionDate: parseDate(formData.transactionDateRoman),
-                purchaseSalesType: "Sales",
+                purchaseSalesType: 'Sales',
                 originalCopies: 1,
                 items: items.map(item => ({
                     itemId: item.itemId,
@@ -2921,7 +2810,6 @@ const AddSales = () => {
             };
 
             const response = await api.post('/api/retailer/sales', billData);
-
             setTransactionCache(new Map());
 
             setNotification({
@@ -2948,6 +2836,52 @@ const AddSales = () => {
             });
             setIsSaving(false);
         }
+    };
+
+    // Entry point from the Save button / form onSubmit
+    const handleSubmit = async (e, print = false) => {
+        e.preventDefault();
+
+        const isValid = validateAllQuantities();
+        if (!isValid) {
+            setNotification({
+                show: true,
+                message: 'Please fix quantity errors before submitting',
+                type: 'error'
+            });
+            const firstErrorIndex = Object.keys(quantityErrors)[0];
+            if (firstErrorIndex !== undefined) {
+                setTimeout(() => {
+                    document.getElementById(`quantity-${firstErrorIndex}`)?.focus();
+                }, 100);
+            }
+            return;
+        }
+
+        // Cash → open settlement modal first
+        if (formData.paymentMode === 'cash') {
+            setPendingSubmitPrint(print);
+            setShowCashSettlementModal(true);
+            return;
+        }
+
+        // Credit → straight save
+        await doSaveBill(print);
+    };
+
+    // Called when user clicks "Save Bill" in the settlement modal
+    const handleCashSettlementConfirm = async (settlement) => {
+        setCashSettlement(settlement);                    // persist for next open
+        setShowCashSettlementModal(false);
+        const print = pendingSubmitPrint;
+        setPendingSubmitPrint(false);
+        await doSaveBill(print, settlement);
+    };
+
+    // Called when user cancels the settlement modal
+    const handleCashSettlementCancel = () => {
+        setShowCashSettlementModal(false);
+        setPendingSubmitPrint(false);
     };
 
     const handlePrintAfterSaveChange = (e) => {
@@ -3216,6 +3150,19 @@ const AddSales = () => {
     };
 
     const totals = calculateTotal();
+
+    useEffect(() => {
+        const total = totals.totalAmount;
+        const received = cashSettlement.type === 'full'
+            ? total
+            : Math.min(parseFloat(cashSettlement.receivedAmount) || 0, total);
+        setCashSettlement(prev => ({
+            ...prev,
+            receivedAmount: received,
+            remainingAmount: Math.round((total - received) * 100) / 100
+        }));
+    }, [cashSettlement.type, cashSettlement.receivedAmount, totals.totalAmount]);
+
 
     useEffect(() => {
         if (roundOffSales && !manualRoundOffOverride) {
@@ -3517,21 +3464,6 @@ const AddSales = () => {
                                                     if (e.key === 'Enter') {
                                                         e.preventDefault();
                                                         const dateStr = e.target.value.trim();
-
-                                                        // if (!dateStr) {
-                                                        //     const currentDate = getCurrentNepaliDate();
-                                                        //     setFormData({
-                                                        //         ...formData,
-                                                        //         transactionDateNepali: currentDate
-                                                        //     });
-                                                        //     setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
-
-                                                        //     setNotification({
-                                                        //         show: true,
-                                                        //         message: 'Date required. Auto-corrected to current date.',
-                                                        //         type: 'warning',
-                                                        //         duration: 3000
-                                                        //     });
 
                                                         //     handleKeyDown(e, 'transactionDateNepali');
                                                         if (!dateStr) {
@@ -4278,48 +4210,6 @@ const AddSales = () => {
                                     </label>
                                 </div>
                             </div>
-
-                            {/* Email Field - Only show in cash mode */}
-                            {/* {formData.paymentMode === 'cash' && isManualAccountEntry && (
-                                <div className="col-12 col-md">
-                                    <div className="position-relative">
-                                        <input
-                                            type="email"
-                                            id="email"
-                                            className="form-control form-control-sm"
-                                            value={cashAccountDetails.email}
-                                            onChange={(e) => {
-                                                setCashAccountDetails(prev => ({ ...prev, email: e.target.value }));
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    handleKeyDown(e, 'email');
-                                                }
-                                            }}
-                                            style={{
-                                                height: '26px',
-                                                fontSize: '0.875rem',
-                                                paddingTop: '0.75rem',
-                                                width: '100%'
-                                            }}
-                                        />
-                                        <label
-                                            className="position-absolute"
-                                            style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}
-                                        >
-                                            Email:
-                                        </label>
-                                    </div>
-                                </div>
-                            )} */}
 
                             {/* Phone Field - Only show in cash mode */}
                             {formData.paymentMode === 'cash' && isManualAccountEntry && (
@@ -5076,31 +4966,6 @@ const AddSales = () => {
                                         <td style={{ padding: '1px' }}>
                                             <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.totalAmount)}</p>
                                         </td>
-                                        {/* <td style={{ padding: '1px' }}>
-                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>In Words:</label>
-                                        </td>
-                                        <td style={{ padding: '1px' }}>
-                                            <div
-                                                className="form-control-plaintext mb-0"
-                                                style={{
-                                                    fontSize: '0.7rem',
-                                                    lineHeight: '1.1',
-                                                    maxHeight: '44px',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    display: '-webkit-box',
-                                                    WebkitLineClamp: 2,
-                                                    WebkitBoxOrient: 'vertical',
-                                                    wordBreak: 'break-word',
-                                                    whiteSpace: 'normal'
-                                                }}
-                                                id="amountInWords"
-                                                title={convertToRupeesAndPaisaNepali(totals.totalAmount) + " Only."}
-                                            >
-                                                {convertToRupeesAndPaisaNepali(totals.totalAmount)} Only.
-                                            </div>
-                                        </td> */}
-
                                         <td colSpan="2" style={{ padding: '1px' }}>
                                             <div
                                                 className="d-flex align-items-start gap-1"
@@ -5221,271 +5086,85 @@ const AddSales = () => {
                                 </div>
                             </div>
                         </div>
+                        {/* {formData.paymentMode === 'cash' && (
+                            <div className="row g-1 mb-2 p-2 rounded"
+                                style={{ background: '#f8f9fa', border: '1px dashed #6c757d' }}>
+                                <div className="col-12 col-md-3">
+                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
+                                        Settlement
+                                    </label>
+                                    <select
+                                        className="form-control form-control-sm"
+                                        value={cashSettlement.type}
+                                        onChange={(e) => {
+                                            const type = e.target.value;
+                                            setCashSettlement(prev => ({
+                                                ...prev,
+                                                type,
+                                                receivedAmount: type === 'full' ? totals.totalAmount : 0
+                                            }));
+                                        }}
+                                        style={{ height: '26px', fontSize: '0.875rem' }}
+                                    >
+                                        <option value="full">Full Settlement</option>
+                                        <option value="partial">Partial Settlement</option>
+                                    </select>
+                                </div>
+
+                                <div className="col-12 col-md-3">
+                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
+                                        Amount Received
+                                    </label>
+                                    <input
+                                        type="number" step="any"
+                                        className="form-control form-control-sm"
+                                        value={cashSettlement.receivedAmount}
+                                        disabled={cashSettlement.type === 'full'}
+                                        onChange={(e) => setCashSettlement(prev => ({
+                                            ...prev, receivedAmount: e.target.value
+                                        }))}
+                                        style={{ height: '26px', fontSize: '0.875rem' }}
+                                    />
+                                </div>
+
+                                <div className="col-12 col-md-2">
+                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
+                                        Remaining (Due)
+                                    </label>
+                                    <input type="text" readOnly
+                                        className="form-control form-control-sm"
+                                        value={formatter.format(cashSettlement.remainingAmount)}
+                                        style={{ height: '26px', fontSize: '0.875rem', background: '#e9ecef' }}
+                                    />
+                                </div>
+
+                                <div className="col-12 col-md-4">
+                                    <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
+                                        Remarks
+                                    </label>
+                                    <input type="text"
+                                        className="form-control form-control-sm"
+                                        value={cashSettlement.remarks}
+                                        onChange={(e) => setCashSettlement(prev => ({
+                                            ...prev, remarks: e.target.value
+                                        }))}
+                                        style={{ height: '26px', fontSize: '0.875rem' }}
+                                    />
+                                </div>
+
+                                {cashSettlement.type === 'partial' && cashSettlement.receivedAmount > 0 && (
+                                    <div className="col-12">
+                                        <small className="text-danger">
+                                            <i className="bi bi-info-circle me-1"></i>
+                                            Rs {formatter.format(cashSettlement.remainingAmount)} will be recorded as outstanding receivable.
+                                        </small>
+                                    </div>
+                                )}
+                            </div>
+                        )} */}
                     </form>
                 </div>
             </div>
-            {/* 
-            {showAccountModal && (
-                <div
-                    className="modal fade show"
-                    id="accountModal"
-                    tabIndex="-1"
-                    style={{ display: 'block' }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            handleAccountModalClose();
-                            setTimeout(() => {
-                                document.getElementById('address').focus();
-                            }, 0);
-                        }
-                    }}
-                >
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content" style={{ height: '400px' }}>
-                            <div className="modal-header py-1">
-                                <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
-                                    {formData.paymentMode === 'cash' ? 'Select Cash Account' : 'Select Account'}
-                                </h5>
-                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
-                                    {formData.paymentMode === 'cash'
-                                        ? (totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Type to search or enter new account')
-                                        : (totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...')
-                                    }
-                                </small>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={handleAccountModalClose}
-                                    aria-label="Close"
-                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
-                                ></button>
-                            </div>
-                            <div className="p-2 bg-white sticky-top">
-                                {formData.paymentMode === 'cash' ? (
-                                    // Cash mode - allow typing new account
-                                    <input
-                                        type="text"
-                                        id="searchAccount"
-                                        className="form-control form-control-sm"
-                                        placeholder="Type to search or enter new account name..."
-                                        autoFocus
-                                        autoComplete='off'
-                                        value={formData.accountName}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                accountName: value,
-                                                accountId: '',
-                                                accountAddress: '',
-                                                accountPan: '',
-                                                accountEmail: '',
-                                                accountPhone: ''
-                                            }));
-                                            setIsManualAccountEntry(true);
-
-                                            setAccountSearchQuery(value);
-                                            setAccountSearchPage(1);
-
-                                            if (value.trim() !== '' && accountShouldShowLastSearchResults) {
-                                                setAccountShouldShowLastSearchResults(false);
-                                                setAccountLastSearchQuery('');
-                                            }
-
-                                            const timer = setTimeout(() => {
-                                                fetchAccountsFromBackend(value, 1);
-                                            }, 300);
-
-                                            return () => clearTimeout(timer);
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item');
-                                                if (firstAccountItem) {
-                                                    firstAccountItem.focus();
-                                                }
-                                            } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                // Use the entered name as account
-                                                const enteredName = document.getElementById('searchAccount').value.trim();
-                                                if (enteredName) {
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        accountName: enteredName,
-                                                        accountId: '',
-                                                        accountAddress: '',
-                                                        accountPan: '',
-                                                        accountEmail: '',
-                                                        accountPhone: ''
-                                                    }));
-                                                    setIsManualAccountEntry(true);
-                                                    setShowAccountModal(false);
-                                                    setTimeout(() => {
-                                                        document.getElementById('address').focus();
-                                                    }, 100);
-                                                }
-                                            } else if (e.key === 'F6') {
-                                                e.preventDefault();
-                                                setShowAccountCreationModal(true);
-                                                handleAccountModalClose();
-                                            }
-                                        }}
-                                        ref={accountSearchRef}
-                                        style={{
-                                            height: '24px',
-                                            fontSize: '0.75rem',
-                                            padding: '0.25rem 0.5rem'
-                                        }}
-                                    />
-                                ) : (
-                                    // Credit mode - keep existing behavior (search only)
-                                    <input
-                                        type="text"
-                                        id="searchAccount"
-                                        className="form-control form-control-sm"
-                                        placeholder="Search Account... (Press F6 to create new account)"
-                                        autoFocus
-                                        autoComplete='off'
-                                        value={accountSearchQuery}
-                                        onChange={handleAccountSearch}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item');
-                                                if (firstAccountItem) {
-                                                    firstAccountItem.focus();
-                                                }
-                                            } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item.active');
-                                                if (firstAccountItem) {
-                                                    const accountId = firstAccountItem.getAttribute('data-account-id');
-                                                    const account = accounts.find(a => a.id === accountId);
-                                                    if (account) {
-                                                        selectAccount(account);
-                                                        document.getElementById('address').focus();
-                                                    }
-                                                }
-                                            } else if (e.key === 'F6') {
-                                                e.preventDefault();
-                                                setShowAccountCreationModal(true);
-                                                handleAccountModalClose();
-                                            }
-                                        }}
-                                        ref={accountSearchRef}
-                                        style={{
-                                            height: '24px',
-                                            fontSize: '0.75rem',
-                                            padding: '0.25rem 0.5rem'
-                                        }}
-                                    />
-                                )}
-                            </div>
-                            <div className="modal-body p-0">
-                                <div style={{ height: 'calc(320px - 40px)' }}>
-                                    {formData.paymentMode === 'cash' && formData.accountName.trim() !== '' && accounts.length === 0 && isManualAccountEntry ? (
-                                        <div className="text-center py-4">
-                                            <i className="bi bi-person-plus text-primary mb-2" style={{ fontSize: '1.5rem' }}></i>
-                                            <p className="text-muted mb-2" style={{ fontSize: '0.8rem' }}>
-                                                No accounts found for "<strong>{formData.accountName}</strong>"
-                                            </p>
-                                            <p className="text-muted mb-3" style={{ fontSize: '0.7rem' }}>
-                                                Press Enter to use as new account, or F6 to create full account
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <VirtualizedAccountList
-                                            accounts={accounts}
-                                            onAccountClick={(account) => {
-                                                setFormData({
-                                                    ...formData,
-                                                    accountId: account.id,
-                                                    accountName: `${account.uniqueNumber || ''} ${account.name}`.trim(),
-                                                    accountAddress: account.address || '',
-                                                    accountPan: account.pan || '',
-                                                    accountEmail: account.email || '',
-                                                    accountPhone: account.phone || ''
-                                                });
-                                                setIsManualAccountEntry(false);
-                                                setShowAccountModal(false);
-                                                setTimeout(() => {
-                                                    document.getElementById('address').focus();
-                                                }, 100);
-                                            }}
-                                            searchRef={accountSearchRef}
-                                            hasMore={hasMoreAccountResults}
-                                            isSearching={isAccountSearching}
-                                            onLoadMore={loadMoreAccounts}
-                                            totalAccounts={totalAccounts}
-                                            page={accountSearchPage}
-                                            searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                            {formData.paymentMode === 'cash' && (
-                                <div className="modal-footer py-1" style={{
-                                    borderTop: '1px solid #dee2e6',
-                                    backgroundColor: '#f8f9fa'
-                                }}>
-                                    <div className="d-flex justify-content-between w-100 align-items-center">
-                                        <div>
-                                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                                                {formData.accountName.trim() !== '' && accounts.length === 0 && isManualAccountEntry
-                                                    ? 'Type account name and press Enter to use'
-                                                    : 'Select account or continue typing'}
-                                            </small>
-                                        </div>
-                                        <div className="d-flex gap-2">
-                                            <button
-                                                type="button"
-                                                className="btn btn-sm btn-primary py-0 px-2"
-                                                onClick={() => {
-                                                    const enteredName = document.getElementById('searchAccount').value.trim();
-                                                    if (enteredName) {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            accountName: enteredName,
-                                                            accountId: '',
-                                                            accountAddress: '',
-                                                            accountPan: '',
-                                                            accountEmail: '',
-                                                            accountPhone: ''
-                                                        }));
-                                                        setIsManualAccountEntry(true);
-                                                        setShowAccountModal(false);
-                                                        setTimeout(() => {
-                                                            document.getElementById('address').focus();
-                                                        }, 100);
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '24px',
-                                                    fontSize: '0.75rem'
-                                                }}
-                                            >
-                                                Use Entered Name
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                onClick={handleAccountModalClose}
-                                                style={{
-                                                    height: '24px',
-                                                    fontSize: '0.75rem'
-                                                }}
-                                            >
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )} */}
 
             {showAccountModal && (
                 <AccountModalForSales
@@ -6218,6 +5897,15 @@ const AddSales = () => {
                     formDate={formData.transactionDateNepali || formData.transactionDateRoman || formData.billDate}
                 />
             )}
+
+            <CashBillSettlementModal
+                show={showCashSettlementModal}
+                totalAmount={totals.totalAmount}
+                formatter={formatter}
+                initialSettlement={cashSettlement}
+                onConfirm={handleCashSettlementConfirm}
+                onCancel={handleCashSettlementCancel}
+            />
 
             {/* Product modal */}
             {showProductModal && (

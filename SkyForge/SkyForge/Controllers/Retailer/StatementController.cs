@@ -158,228 +158,433 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+        // [HttpPut("transaction/{id}/cash-settlement")]
+        // public async Task<IActionResult> UpdateCashSettlement(Guid id, [FromBody] CashSettlementRequest request)
+        // {
+        //     try
+        //     {
+        //         var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+        //         if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out Guid companyIdGuid))
+        //             return BadRequest(new { success = false, error = "No company selected." });
+
+        //         // 1. Find the initial transaction
+        //         var transaction = await _context.Transactions
+        //             .FirstOrDefaultAsync(t => t.Id == id && t.CompanyId == companyIdGuid);
+
+        //         if (transaction == null)
+        //         {
+        //             transaction = await _context.Transactions
+        //                 .FirstOrDefaultAsync(t =>
+        //                     t.CompanyId == companyIdGuid &&
+        //                     (t.SalesBillId == id || t.PurchaseBillId == id || t.SalesReturnBillId == id || t.PurchaseReturnBillId == id));
+        //         }
+
+        //         if (transaction == null)
+        //             return NotFound(new { success = false, error = "Transaction not found." });
+
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         Guid.TryParse(userId, out Guid userIdGuid);
+        //         var user = await _context.Users.Where(u => u.Id == userIdGuid).Select(u => new { u.Id, u.Name }).FirstOrDefaultAsync();
+
+        //         // 2. Find ALL transactions linked to this bill
+        //         IQueryable<Transaction> linkedTransactionsQuery = _context.Transactions
+        //             .Include(t => t.Account) // ✅ CRITICAL: Include Account to check the AccountGroup
+        //             .Where(t => t.CompanyId == companyIdGuid);
+
+        //         if (transaction.SalesBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.SalesBillId == transaction.SalesBillId);
+        //         else if (transaction.PurchaseBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.PurchaseBillId == transaction.PurchaseBillId);
+        //         else if (transaction.SalesReturnBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.SalesReturnBillId == transaction.SalesReturnBillId);
+        //         else if (transaction.PurchaseReturnBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.PurchaseReturnBillId == transaction.PurchaseReturnBillId);
+        //         else
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.Id == transaction.Id); 
+
+        //         var linkedTransactions = await linkedTransactionsQuery.ToListAsync();
+
+        //         decimal newSettledAmount = request.Amount ?? 0;
+        //         bool isSale = transaction.SalesBillId.HasValue;
+        //         bool isPurchase = transaction.PurchaseBillId.HasValue;
+        //         bool isSalesReturn = transaction.SalesReturnBillId.HasValue;
+        //         bool isPurchaseReturn = transaction.PurchaseReturnBillId.HasValue;
+
+        //         // 3. Update settlement fields and ledger amounts
+        //         foreach (var tx in linkedTransactions)
+        //         {
+        //             // A. Update settlement metadata on ALL rows
+        //             tx.CashSettlementStatus = request.Status;
+        //             tx.CashSettlementDate = DateTime.UtcNow;
+        //             tx.CashSettlementUserId = userIdGuid;
+        //             tx.CashSettlementRemarks = request.Remarks;
+        //             tx.UpdatedAt = DateTime.UtcNow;
+
+        //             if (tx.Id == transaction.Id || tx.PaymentMode == PaymentMode.Cash)
+        //             {
+        //                 tx.CashSettlementAmount = newSettledAmount;
+        //             }
+
+        //             // B. ✅ ONLY update the TOTAL DEBIT/CREDIT if this row is the actual CASH IN HAND account
+        //             // We check the AccountGroup name to be absolutely sure.
+        //             bool isCashInHandRow = tx.PaymentMode == PaymentMode.Cash && 
+        //                                    (tx.Account?.AccountGroup?.Name == "Cash in Hand" || 
+        //                                     tx.Account?.Name == "Cash in Hand");
+
+        //             if (isCashInHandRow)
+        //             {
+        //                 if (isSale || isPurchaseReturn)
+        //                 {
+        //                     // Cash In: Debit Cash in Hand
+        //                     if (tx.TotalDebit > 0) tx.TotalDebit = newSettledAmount; 
+        //                 }
+        //                 else if (isPurchase || isSalesReturn)
+        //                 {
+        //                     // Cash Out: Credit Cash in Hand
+        //                     if (tx.TotalCredit > 0) tx.TotalCredit = newSettledAmount;
+        //                 }
+        //             }
+        //             // ❌ We do NOT touch the Party row's TotalDebit. It stays at 135.60.
+        //         }
+
+        //         // 4. Update the Sales Bill Header
+        //         if (transaction.SalesBillId.HasValue)
+        //         {
+        //             var salesBill = await _context.SalesBills.FindAsync(transaction.SalesBillId.Value);
+        //             if (salesBill != null)
+        //             {
+        //                 salesBill.CashSettlementStatus = request.Status;
+        //                 salesBill.CashSettlementDate = DateTime.UtcNow;
+        //                 salesBill.CashSettlementRemarks = request.Remarks;
+
+        //                 salesBill.CashReceivedAmount = newSettledAmount;
+        //                 salesBill.CashRemainingAmount = Math.Max(0, salesBill.TotalAmount - newSettledAmount);
+        //                 salesBill.CashSettlementType = salesBill.CashRemainingAmount == 0 ? "full" : "partial";
+        //             }
+        //         }
+
+        //         await _context.SaveChangesAsync();
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             message = $"Cash settlement updated to {request.Status}",
+        //             data = new
+        //             {
+        //                 status = request.Status,
+        //                 date = DateTime.UtcNow,
+        //                 user = user?.Name ?? "Unknown User",
+        //                 remarks = request.Remarks,
+        //                 amount = newSettledAmount
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error updating cash settlement for transaction {TransactionId}", id);
+        //         return StatusCode(500, new { success = false, error = "Internal server error." });
+        //     }
+        // }
+
+        // [HttpPut("transaction/{id}/cash-settlement")]
+        // public async Task<IActionResult> UpdateCashSettlement(Guid id, [FromBody] CashSettlementRequest request)
+        // {
+        //     try
+        //     {
+        //         var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+        //         if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out Guid companyIdGuid))
+        //             return BadRequest(new { success = false, error = "No company selected." });
+
+        //         var transaction = await _context.Transactions
+        //             .FirstOrDefaultAsync(t => t.Id == id && t.CompanyId == companyIdGuid);
+
+        //         if (transaction == null)
+        //         {
+        //             transaction = await _context.Transactions
+        //                 .FirstOrDefaultAsync(t =>
+        //                     t.CompanyId == companyIdGuid &&
+        //                     (t.SalesBillId == id || t.PurchaseBillId == id || t.SalesReturnBillId == id || t.PurchaseReturnBillId == id));
+        //         }
+
+        //         if (transaction == null)
+        //             return NotFound(new { success = false, error = "Transaction not found." });
+
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         Guid.TryParse(userId, out Guid userIdGuid);
+        //         var user = await _context.Users.Where(u => u.Id == userIdGuid).Select(u => new { u.Id, u.Name }).FirstOrDefaultAsync();
+
+        //         IQueryable<Transaction> linkedTransactionsQuery = _context.Transactions
+        //             .Include(t => t.Account)
+        //             .Where(t => t.CompanyId == companyIdGuid);
+
+        //         if (transaction.SalesBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.SalesBillId == transaction.SalesBillId);
+        //         else if (transaction.PurchaseBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.PurchaseBillId == transaction.PurchaseBillId);
+        //         else if (transaction.SalesReturnBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.SalesReturnBillId == transaction.SalesReturnBillId);
+        //         else if (transaction.PurchaseReturnBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.PurchaseReturnBillId == transaction.PurchaseReturnBillId);
+        //         else
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.Id == transaction.Id);
+
+        //         var linkedTransactions = await linkedTransactionsQuery.ToListAsync();
+
+        //         decimal newSettledAmount = request.Amount ?? 0;
+        //         bool isSale = transaction.SalesBillId.HasValue;
+        //         bool isPurchase = transaction.PurchaseBillId.HasValue;
+        //         bool isSalesReturn = transaction.SalesReturnBillId.HasValue;
+        //         bool isPurchaseReturn = transaction.PurchaseReturnBillId.HasValue;
+
+        //         // Trust the status from the frontend (Received, Paid, Partial, Pending)
+        //         string finalStatus = request.Status;
+
+        //         foreach (var tx in linkedTransactions)
+        //         {
+        //             tx.CashSettlementStatus = finalStatus;
+        //             tx.CashSettlementDate = DateTime.UtcNow;
+        //             tx.CashSettlementUserId = userIdGuid;
+        //             tx.CashSettlementRemarks = request.Remarks;
+        //             tx.UpdatedAt = DateTime.UtcNow;
+
+        //             if (tx.Id == transaction.Id || tx.PaymentMode == PaymentMode.Cash)
+        //             {
+        //                 tx.CashSettlementAmount = newSettledAmount;
+        //             }
+
+        //             // Update the Cash in Hand ledger account
+        //             bool isCashInHandRow = tx.PaymentMode == PaymentMode.Cash &&
+        //                                    (tx.Account?.AccountGroup?.Name == "Cash in Hand" ||
+        //                                     tx.Account?.Name == "Cash in Hand");
+
+        //             if (isCashInHandRow)
+        //             {
+        //                 if (isSale || isPurchaseReturn)
+        //                 {
+        //                     if (tx.TotalDebit > 0) tx.TotalDebit = newSettledAmount;
+        //                 }
+        //                 else if (isPurchase || isSalesReturn)
+        //                 {
+        //                     if (tx.TotalCredit > 0) tx.TotalCredit = newSettledAmount;
+        //                 }
+        //             }
+        //         }
+
+        //         // Update Sales Bill Header
+        //         if (isSale)
+        //         {
+        //             var salesBill = await _context.SalesBills.FindAsync(transaction.SalesBillId.Value);
+        //             if (salesBill != null)
+        //             {
+        //                 salesBill.CashSettlementStatus = finalStatus;
+        //                 salesBill.CashSettlementDate = DateTime.UtcNow;
+        //                 salesBill.CashSettlementRemarks = request.Remarks;
+
+        //                 salesBill.CashReceivedAmount = newSettledAmount;
+        //                 salesBill.CashRemainingAmount = Math.Max(0, salesBill.TotalAmount - newSettledAmount);
+
+        //                 // Explicitly set the Type based on the frontend selection
+        //                 salesBill.CashSettlementType = finalStatus == "Partial" ? "partial" : "full";
+        //             }
+        //         }
+
+        //         await _context.SaveChangesAsync();
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             message = $"Cash settlement updated to {finalStatus}",
+        //             data = new
+        //             {
+        //                 status = finalStatus,
+        //                 date = DateTime.UtcNow,
+        //                 user = user?.Name ?? "Unknown User",
+        //                 remarks = request.Remarks,
+        //                 amount = newSettledAmount
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error updating cash settlement for transaction {TransactionId}", id);
+        //         return StatusCode(500, new { success = false, error = "Internal server error." });
+        //     }
+        // }
+
         [HttpPut("transaction/{id}/cash-settlement")]
         public async Task<IActionResult> UpdateCashSettlement(Guid id, [FromBody] CashSettlementRequest request)
         {
             try
             {
-                // Extract company ID from JWT claims
                 var companyIdClaim = User.FindFirst("currentCompany")?.Value;
                 if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out Guid companyIdGuid))
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = "No company selected. Please select a company first."
-                    });
-                }
+                    return BadRequest(new { success = false, error = "No company selected." });
 
-                // Try to find the transaction by direct ID first
+                // 1. Find the initial transaction
                 var transaction = await _context.Transactions
-                    .Include(t => t.Account)
-                    .Include(t => t.CashSettlementUser)
                     .FirstOrDefaultAsync(t => t.Id == id && t.CompanyId == companyIdGuid);
 
-                // If not found by direct ID, try to find by related bill IDs
                 if (transaction == null)
                 {
                     transaction = await _context.Transactions
-                        .Include(t => t.Account)
-                        .Include(t => t.CashSettlementUser)
                         .FirstOrDefaultAsync(t =>
                             t.CompanyId == companyIdGuid &&
-                            (t.SalesBillId == id ||
-                             t.PurchaseBillId == id ||
-                             t.SalesReturnBillId == id ||
-                             t.PurchaseReturnBillId == id ||
-                             t.PaymentAccountId == id ||
-                             t.ReceiptAccountId == id ||
-                             t.JournalBillId == id ||
-                             t.DebitNoteId == id ||
-                             t.CreditNoteId == id));
+                            (t.SalesBillId == id || t.PurchaseBillId == id || t.SalesReturnBillId == id || t.PurchaseReturnBillId == id));
                 }
 
                 if (transaction == null)
-                {
-                    _logger.LogWarning($"Transaction not found for ID: {id} in company: {companyIdGuid}");
-                    return NotFound(new
-                    {
-                        success = false,
-                        error = "Transaction not found. Please refresh the page and try again."
-                    });
-                }
+                    return NotFound(new { success = false, error = "Transaction not found." });
 
-                // Only allow cash transactions
-                if (transaction.PaymentMode != PaymentMode.Cash)
-                {
-                    return BadRequest(new { success = false, error = "Cash settlement only available for cash transactions" });
-                }
-
-                // Only allow specific transaction types
-                var allowedTypes = new[] { TransactionType.Sale, TransactionType.Purc, TransactionType.SlRt, TransactionType.PrRt };
-                if (!allowedTypes.Contains(transaction.Type))
-                {
-                    return BadRequest(new { success = false, error = "Cash settlement only available for Sales, Purchases, Sales Return, and Purchase Return" });
-                }
-
-                // Validate the status based on transaction type
-                bool isValidStatus = false;
-                switch (transaction.Type)
-                {
-                    case TransactionType.Sale:
-                        isValidStatus = request.Status == "Received" || request.Status == "Pending";
-                        break;
-                    case TransactionType.Purc:
-                        isValidStatus = request.Status == "Paid" || request.Status == "Pending";
-                        break;
-                    case TransactionType.SlRt:
-                        isValidStatus = request.Status == "Refunded" || request.Status == "Pending";
-                        break;
-                    case TransactionType.PrRt:
-                        isValidStatus = request.Status == "Returned" || request.Status == "Pending";
-                        break;
-                    default:
-                        isValidStatus = false;
-                        break;
-                }
-
-                if (!isValidStatus)
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        error = $"Invalid status '{request.Status}' for transaction type '{transaction.Type}'. Valid statuses: " +
-                               (transaction.Type == TransactionType.Sale ? "Received, Pending" :
-                                transaction.Type == TransactionType.Purc ? "Paid, Pending" :
-                                transaction.Type == TransactionType.SlRt ? "Refunded, Pending" :
-                                transaction.Type == TransactionType.PrRt ? "Returned, Pending" : "")
-                    });
-                }
-
-                // Get user ID from claims
                 var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid userIdGuid))
-                {
-                    return Unauthorized(new { success = false, error = "Invalid user token" });
-                }
+                Guid.TryParse(userId, out Guid userIdGuid);
+                var user = await _context.Users.Where(u => u.Id == userIdGuid).Select(u => new { u.Id, u.Name }).FirstOrDefaultAsync();
 
-                // Get user for the settlement record
-                var user = await _context.Users
-                    .Where(u => u.Id == userIdGuid)
-                    .Select(u => new { u.Id, u.Name })
-                    .FirstOrDefaultAsync();
+                // 2. Find ALL transactions linked to this bill
+                IQueryable<Transaction> linkedTransactionsQuery = _context.Transactions
+                    .Include(t => t.Account)
+                    .Where(t => t.CompanyId == companyIdGuid);
 
-                // Update the main transaction with settlement information
-                transaction.CashSettlementStatus = request.Status;
-                transaction.CashSettlementDate = DateTime.UtcNow;
-                transaction.CashSettlementUserId = userIdGuid;
-                transaction.CashSettlementRemarks = request.Remarks;
-                transaction.UpdatedAt = DateTime.UtcNow;
-
-                // ============================================================
-                // CRITICAL FIX: Also update the linked transaction (Purchase/Sale)
-                // The status is already being copied, now we copy the remarks too
-                // ============================================================
-                Transaction? linkedTransaction = null;
-
-                // For Payment transactions linked to a Purchase
-                if (transaction.Type == TransactionType.Pymt && transaction.PaymentAccountId.HasValue)
-                {
-                    linkedTransaction = await _context.Transactions
-                        .FirstOrDefaultAsync(t => t.PurchaseBillId == transaction.PaymentAccountId
-                            && t.CompanyId == companyIdGuid
-                            && t.Type == TransactionType.Purc);
-
-                    if (linkedTransaction != null)
-                    {
-                        _logger.LogInformation($"Found linked purchase transaction: {linkedTransaction.Id}");
-                    }
-                }
-                // For Receipt transactions linked to a Sale
-                else if (transaction.Type == TransactionType.Rcpt && transaction.ReceiptAccountId.HasValue)
-                {
-                    linkedTransaction = await _context.Transactions
-                        .FirstOrDefaultAsync(t => t.SalesBillId == transaction.ReceiptAccountId
-                            && t.CompanyId == companyIdGuid
-                            && t.Type == TransactionType.Sale);
-
-                    if (linkedTransaction != null)
-                    {
-                        _logger.LogInformation($"Found linked sale transaction: {linkedTransaction.Id}");
-                    }
-                }
-                // For Purchase transactions with a PurchaseBillId
-                else if (transaction.Type == TransactionType.Purc && transaction.PurchaseBillId.HasValue)
-                {
-                    linkedTransaction = await _context.Transactions
-                        .FirstOrDefaultAsync(t => t.PurchaseBillId == transaction.PurchaseBillId
-                            && t.CompanyId == companyIdGuid
-                            && t.Type == TransactionType.Purc
-                            && t.Id != transaction.Id);
-
-                    if (linkedTransaction != null)
-                    {
-                        _logger.LogInformation($"Found linked purchase transaction: {linkedTransaction.Id}");
-                    }
-                }
-                // For Sale transactions with a SalesBillId
-                else if (transaction.Type == TransactionType.Sale && transaction.SalesBillId.HasValue)
-                {
-                    linkedTransaction = await _context.Transactions
-                        .FirstOrDefaultAsync(t => t.SalesBillId == transaction.SalesBillId
-                            && t.CompanyId == companyIdGuid
-                            && t.Type == TransactionType.Sale
-                            && t.Id != transaction.Id);
-
-                    if (linkedTransaction != null)
-                    {
-                        _logger.LogInformation($"Found linked sale transaction: {linkedTransaction.Id}");
-                    }
-                }
-
-                // If a linked transaction exists, update it with BOTH status AND remarks
-                if (linkedTransaction != null)
-                {
-                    linkedTransaction.CashSettlementStatus = request.Status;
-                    linkedTransaction.CashSettlementDate = DateTime.UtcNow;
-                    linkedTransaction.CashSettlementUserId = userIdGuid;
-                    linkedTransaction.CashSettlementRemarks = request.Remarks; // <-- THIS IS THE KEY FIX
-                    linkedTransaction.UpdatedAt = DateTime.UtcNow;
-
-                    _logger.LogInformation($"Updated linked transaction {linkedTransaction.Id} with status: {request.Status}, remarks: {request.Remarks}");
-                }
+                if (transaction.SalesBillId.HasValue)
+                    linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.SalesBillId == transaction.SalesBillId);
+                else if (transaction.PurchaseBillId.HasValue)
+                    linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.PurchaseBillId == transaction.PurchaseBillId);
+                else if (transaction.SalesReturnBillId.HasValue)
+                    linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.SalesReturnBillId == transaction.SalesReturnBillId);
+                else if (transaction.PurchaseReturnBillId.HasValue)
+                    linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.PurchaseReturnBillId == transaction.PurchaseReturnBillId);
                 else
+                    linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.Id == transaction.Id);
+
+                var linkedTransactions = await linkedTransactionsQuery.ToListAsync();
+
+                decimal newSettledAmount = request.Amount ?? 0;
+                bool isSale = transaction.SalesBillId.HasValue;
+                bool isPurchase = transaction.PurchaseBillId.HasValue;
+                bool isSalesReturn = transaction.SalesReturnBillId.HasValue;
+                bool isPurchaseReturn = transaction.PurchaseReturnBillId.HasValue;
+
+                string finalStatus = request.Status;
+
+                // 3. Update settlement metadata on existing rows and Cash-in-Hand account
+                bool cashInHandRowFound = false;
+
+                foreach (var tx in linkedTransactions)
                 {
-                    _logger.LogWarning($"No linked transaction found for transaction {transaction.Id}");
+                    tx.CashSettlementStatus = finalStatus;
+                    tx.CashSettlementDate = DateTime.UtcNow;
+                    tx.CashSettlementUserId = userIdGuid;
+                    tx.CashSettlementRemarks = request.Remarks;
+                    tx.UpdatedAt = DateTime.UtcNow;
+
+                    if (tx.Id == transaction.Id || tx.PaymentMode == PaymentMode.Cash)
+                    {
+                        tx.CashSettlementAmount = newSettledAmount;
+                    }
+
+                    // Identify if this row is the Cash-in-Hand ledger row
+                    bool isCashInHandRow = tx.PaymentMode == PaymentMode.Cash &&
+                                           (tx.Account?.AccountGroup?.Name == "Cash in Hand" ||
+                                            tx.Account?.Name == "Cash in Hand");
+
+                    if (isCashInHandRow)
+                    {
+                        cashInHandRowFound = true;
+                        if (isSale || isPurchaseReturn)
+                        {
+                            if (tx.TotalDebit > 0) tx.TotalDebit = newSettledAmount;
+                        }
+                        else if (isPurchase || isSalesReturn)
+                        {
+                            if (tx.TotalCredit > 0) tx.TotalCredit = newSettledAmount;
+                        }
+                    }
                 }
 
-                // Save all changes
+                // 4. If Cash-in-Hand row is missing (e.g., saved as Pending originally), CREATE it
+                if (!cashInHandRowFound && newSettledAmount > 0)
+                {
+                    // ✅ Fetch the Cash in Hand account directly from the DB
+                    var cashInHandAccount = await _context.Accounts
+                        .Include(a => a.AccountGroup)
+                        .FirstOrDefaultAsync(a => a.CompanyId == companyIdGuid &&
+                                                  (a.AccountGroup.Name == "Cash in Hand" || a.Name == "Cash in Hand"));
+
+                    if (cashInHandAccount != null)
+                    {
+                        var newCashTx = new Transaction
+                        {
+                            Id = Guid.NewGuid(),
+                            CompanyId = companyIdGuid,
+                            AccountId = cashInHandAccount.Id, // ✅ Use the fetched ID
+                            SalesBillId = transaction.SalesBillId,
+                            PurchaseBillId = transaction.PurchaseBillId,
+                            SalesReturnBillId = transaction.SalesReturnBillId,
+                            PurchaseReturnBillId = transaction.PurchaseReturnBillId,
+                            BillNumber = transaction.BillNumber,
+                            IsType = TransactionIsType.Sale,
+                            Type = TransactionType.Sale,
+                            PurchaseSalesType = transaction.PurchaseSalesType,
+                            TotalDebit = (isSale || isPurchaseReturn) ? newSettledAmount : 0,
+                            TotalCredit = (isPurchase || isSalesReturn) ? newSettledAmount : 0,
+                            PaymentMode = PaymentMode.Cash,
+                            Date = transaction.Date,
+                            TransactionDate = transaction.TransactionDate,
+                            NepaliDate = transaction.NepaliDate,
+                            TransactionDateNepali = transaction.TransactionDateNepali,
+                            FiscalYearId = transaction.FiscalYearId,
+                            CreatedAt = DateTime.UtcNow,
+                            Status = TransactionStatus.Active,
+                            IsActive = true,
+
+                            // Settlement Metadata
+                            CashSettlementStatus = finalStatus,
+                            CashSettlementAmount = newSettledAmount,
+                            CashSettlementDate = DateTime.UtcNow,
+                            CashSettlementUserId = userIdGuid,
+                            CashSettlementRemarks = request.Remarks
+                        };
+
+                        await _context.Transactions.AddAsync(newCashTx);
+                    }
+                }
+
+                // 5. Update Sales Bill Header
+                if (isSale)
+                {
+                    var salesBill = await _context.SalesBills.FindAsync(transaction.SalesBillId.Value);
+                    if (salesBill != null)
+                    {
+                        salesBill.CashSettlementStatus = finalStatus;
+                        salesBill.CashSettlementDate = DateTime.UtcNow;
+                        salesBill.CashSettlementRemarks = request.Remarks;
+                        salesBill.CashReceivedAmount = newSettledAmount;
+                        salesBill.CashRemainingAmount = Math.Max(0, salesBill.TotalAmount - newSettledAmount);
+                        salesBill.CashSettlementType = finalStatus == "Partial" ? "partial" : "full";
+                    }
+                }
+
                 await _context.SaveChangesAsync();
 
                 return Ok(new
                 {
                     success = true,
-                    message = $"Cash settlement status updated to {request.Status}",
+                    message = $"Cash settlement updated to {finalStatus}",
                     data = new
                     {
-                        status = transaction.CashSettlementStatus,
-                        date = transaction.CashSettlementDate,
+                        status = finalStatus,
+                        date = DateTime.UtcNow,
                         user = user?.Name ?? "Unknown User",
-                        remarks = transaction.CashSettlementRemarks
+                        remarks = request.Remarks,
+                        amount = newSettledAmount
                     }
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating cash settlement for transaction {TransactionId}", id);
-                return StatusCode(500, new
-                {
-                    success = false,
-                    error = "Internal server error while updating cash settlement"
-                });
+                return StatusCode(500, new { success = false, error = "Internal server error." });
             }
         }
-
 
         // Public endpoint - No authentication required!
         // [HttpGet("public-statement/{token}")]
@@ -1011,6 +1216,7 @@ namespace SkyForge.Controllers.Retailer
         {
             public string Status { get; set; } = string.Empty; // "Received", "Paid", "Refunded","Returned","Pending"
             public string? Remarks { get; set; }
+            public decimal? Amount { get; set; }
         }
 
     }

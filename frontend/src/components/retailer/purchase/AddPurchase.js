@@ -3736,7 +3736,7 @@ const AddPurchase = () => {
                                                 type="number"
                                                 className="form-control form-control-sm"
                                                 id='headerWsUnit'
-                                                placeholder="WS Unit"
+                                                placeholder="WS"
                                                 value={selectedItemWSUnit}
                                                 onChange={(e) => setSelectedItemWSUnit(e.target.value)}
                                                 onKeyDown={(e) => {
