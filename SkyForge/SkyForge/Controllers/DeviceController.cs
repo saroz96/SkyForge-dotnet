@@ -36,7 +36,7 @@ namespace SkyForge.Controllers
             HttpContext.Connection.RemoteIpAddress?.ToString();
 
         // ==================== CLIENT ENDPOINTS ====================
-        
+
         // POST: api/device/register  (PRE-LOGIN — no JWT yet)
         [HttpPost("register")]
         [AllowAnonymous]   // 🔓 REQUIRED — user isn't logged in yet
@@ -221,6 +221,22 @@ namespace SkyForge.Controllers
 
             var ok = await _deviceService.RevokeDeviceAsync(id, adminId.Value, request.Reason);
             return ok ? Ok(new { success = true }) : NotFound();
+        }
+
+        // DELETE: api/device/admin/{id}
+        [HttpDelete("admin/{id}")]
+        [Authorize]
+        public async Task<IActionResult> DeleteDevice(Guid id)
+        {
+            var adminId = GetCurrentUserId();
+            if (adminId == null || !await IsAdminOrSupervisorAsync())
+                return Forbid();
+
+            var ok = await _deviceService.DeleteDeviceAsync(id, adminId.Value);
+
+            return ok
+                ? Ok(new { success = true, message = "Device permanently removed" })
+                : NotFound(new { success = false, error = "Device not found" });
         }
 
         // POST: api/device/admin/{id}/block

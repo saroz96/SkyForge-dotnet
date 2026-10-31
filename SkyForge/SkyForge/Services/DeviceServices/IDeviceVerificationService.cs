@@ -17,6 +17,7 @@ namespace SkyForge.Services.DeviceServices
         Task<bool> ApproveDeviceAsync(Guid deviceId, Guid adminId, ApproveDeviceRequestDTO request);
         Task<bool> RejectDeviceAsync(Guid deviceId, Guid adminId, RejectDeviceRequestDTO request);
         Task<bool> RevokeDeviceAsync(Guid deviceId, Guid adminId, string reason);
+        Task<bool> DeleteDeviceAsync(Guid deviceId, Guid adminId);
         Task<bool> BlockDeviceAsync(Guid deviceId, Guid adminId, string reason);
 
         // Helpers

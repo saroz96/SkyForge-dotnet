@@ -86,6 +86,7 @@ const Statement = () => {
     const [showAccountModal, setShowAccountModal] = useState(false);
     const [showCashSettlementModal, setShowCashSettlementModal] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [isEmailing, setIsEmailing] = useState(false);
 
     const [dateErrors, setDateErrors] = useState({ fromDate: '', toDate: '' });
     const [notification, setNotification] = useState({ show: false, message: '', type: 'success', duration: 3000 });
@@ -649,7 +650,41 @@ const Statement = () => {
         }
     };
 
-    // --- WhatsApp & Share ---
+
+    const handleEmailStatement = async () => {
+        if (!data.selectedCompany) {
+            setNotification({ show: true, message: 'Please select an account first', type: 'warning' });
+            return;
+        }
+
+        setIsEmailing(true);
+        try {
+            const params = new URLSearchParams();
+            // ✅ Send AD dates for the database query
+            if (dateRange.fromDateAd) params.append('fromDate', dateRange.fromDateAd);
+            if (dateRange.toDateAd) params.append('toDate', dateRange.toDateAd);
+            if (data.paymentMode) params.append('paymentMode', data.paymentMode);
+
+            // ✅ Send BS dates for the PDF header display
+            if (dateRange.fromDate) params.append('fromDateBs', dateRange.fromDate);
+            if (dateRange.toDate) params.append('toDateBs', dateRange.toDate);
+
+            const response = await api.post(`/api/retailer/statement/${data.selectedCompany}/email?${params.toString()}`);
+
+            if (response.data.success) {
+                setNotification({ show: true, message: 'Statement emailed successfully!', type: 'success' });
+            }
+        } catch (error) {
+            setNotification({
+                show: true,
+                message: error.response?.data?.error || 'Failed to send email',
+                type: 'error'
+            });
+        } finally {
+            setIsEmailing(false);
+        }
+    };
+
     const buildWhatsAppMessage = useCallback(() => {
         if (!generatedShareLink) return 'Generating link...';
         return `📊 *STATEMENT OF ACCOUNT*\n\n🏢 *Company:* ${data.currentCompanyName || 'N/A'}\n👤 *Party:* ${data.partyName || 'N/A'}\n📅 *Period:* ${dateRange.fromDate} to ${dateRange.toDate}\n\n─────────────────────\n\n🔗 *View your statement anytime:*\n${generatedShareLink}\n\n💡 *This link is permanent and always shows your latest statement.*\n\n─────────────────────\n📅 Generated: ${new Date().toLocaleString()}\n🔹 Powered by Ams Software`;
@@ -1201,8 +1236,7 @@ const Statement = () => {
         <div className="st-page">
             <Header />
 
-            <div className="st-shell">
-                {/* Top Bar */}
+            {/* <div className="st-shell">
                 <div className="st-topbar">
                     <div className="st-topbar__left">
                         <div className="st-topbar__icon"><FiFileText /></div>
@@ -1215,7 +1249,6 @@ const Statement = () => {
                     </div>
                 </div>
 
-                {/* Toolbar */}
                 <div className="st-toolbar">
                     <div className="st-field st-field--account">
                         <label>Party <span className="req">*</span></label>
@@ -1274,10 +1307,18 @@ const Statement = () => {
                         </div>
                     </div>
 
-                    {/* WhatsApp & Share Buttons */}
                     <div className="st-actions">
                         <button className="st-btn-wa" title='Share via WhatsApp' onClick={handleOpenWhatsAppModal} disabled={data.statement.length === 0 && data.itemwiseStatement.length === 0 || isGeneratingLink}>
                             {isGeneratingLink ? <span className="spinner-border spinner-border-sm me-1" /> : <><i className="bi bi-whatsapp me-1" /></>}
+                        </button>
+                        <button
+                            className="st-btn-share"
+                            onClick={handleEmailStatement}
+                            disabled={!data.selectedCompany || isEmailing}
+                            title="Email Statement to Client"
+                        >
+                            <i className="bi bi-envelope me-1" />
+                            {isEmailing ? '...' : ''}
                         </button>
                         <button className="st-btn-share" title='Get Share Link' onClick={generatePermanentShareLink} disabled={!data.selectedCompany || emailLoading}>
                             <FiLink className="me-1" /> {emailLoading ? '...' : ''}
@@ -1292,7 +1333,6 @@ const Statement = () => {
                     </div>
                 )}
 
-                {/* Main Content */}
                 <div className="st-main">
                     {data.statement.length === 0 && data.itemwiseStatement.length === 0 && !loading ? (
                         <div className="st-state">
@@ -1404,10 +1444,241 @@ const Statement = () => {
                         )
                     )}
                 </div>
-            </div>
+            </div> */}
 
-            {/* Account Selection Modal */}
-            {/* {showAccountModal && (
+                <div className="st-shell">
+                    {/* Top Bar */}
+                    <div className="st-topbar">
+                        <div className="st-topbar__left">
+                            <div className="st-topbar__icon"><FiFileText /></div>
+                            <div><h1>{data.partyName ? `Statement: ${data.partyName}` : 'Statement'}</h1></div>
+                        </div>
+                        <div className="st-topbar__actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {/* Moved Action Buttons Here */}
+                            <button
+                                className="st-btn-wa"
+                                title='Share via WhatsApp'
+                                onClick={handleOpenWhatsAppModal}
+                                disabled={(data.statement.length === 0 && data.itemwiseStatement.length === 0) || isGeneratingLink}
+                            >
+                                {isGeneratingLink ? <span className="spinner-border spinner-border-sm me-1" /> : <><i className="bi bi-whatsapp me-1" /></>}
+                            </button>
+                            <button
+                                className="st-btn-share"
+                                onClick={handleEmailStatement}
+                                disabled={!data.selectedCompany || isEmailing}
+                                title="Email Statement to Client"
+                            >
+                                <i className="bi bi-envelope me-1" />
+                                {isEmailing ? '...' : ''}
+                            </button>
+                            <button
+                                className="st-btn-share"
+                                title='Get Share Link'
+                                onClick={generatePermanentShareLink}
+                                disabled={!data.selectedCompany || emailLoading}
+                            >
+                                <FiLink className="me-1" /> {emailLoading ? '...' : ''}
+                            </button>
+
+                            {/* Existing Topbar Actions */}
+                            <button className="st-btn-icon" onClick={handleExportExcel} disabled={exporting}>
+                                <FiDownload /> {exporting ? '…' : 'Excel'}
+                            </button>
+                            <button className="st-btn-icon" onClick={handlePrint}>
+                                <FiPrinter /> Print
+                            </button>
+                            <button className="st-btn-icon" onClick={resetColumnWidths} title="Reset columns">
+                                <FiRefreshCw /> Reset
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Toolbar */}
+                    <div className="st-toolbar">
+                        <div className="st-field st-field--account">
+                            <label>Party <span className="req">*</span></label>
+                            <input type="text" id="account" value={data.partyName} onClick={() => setShowAccountModal(true)} readOnly placeholder="Click to select..." />
+                        </div>
+
+                        <div className="st-field st-field--date">
+                            <label>From (BS) <span className="req">*</span></label>
+                            <input type="text" id="fromDate" ref={fromDateRef} className={dateErrors.fromDate ? 'is-invalid' : ''} value={dateRange.fromDate || ''} onChange={(e) => { const v = e.target.value.replace(/[^0-9/-]/g, '').slice(0, 10); setDateRange(p => ({ ...p, fromDate: v, fromDateAd: convertBsToAd(v) || p.fromDateAd })); setDateErrors(p => ({ ...p, fromDate: '' })); }} onKeyDown={(e) => handleKeyDown(e, 'fromDateAd')} onBlur={(e) => { const d = e.target.value.trim(); if (!d) return; const c = validateAndCorrectNepaliDate(d); if (!c) { const ad = convertBsToAd(currentNepaliDate); setDateRange(p => ({ ...p, fromDate: currentNepaliDate, fromDateAd: ad })); setNotification({ show: true, message: 'Invalid Nepali date. Auto-corrected.', type: 'warning' }); } }} placeholder="YYYY-MM-DD" autoComplete="off" autoFocus />
+                            {dateErrors.fromDate && <div className="st-field-error">{dateErrors.fromDate}</div>}
+                        </div>
+                        <div className="st-field st-field--date">
+                            <label>From (AD)</label>
+                            <input type="date" id="fromDateAd" value={dateRange.fromDateAd || ''} onChange={(e) => { const v = e.target.value; setDateRange(p => ({ ...p, fromDateAd: v, fromDate: convertAdToBs(v) || p.fromDate })); }} onKeyDown={(e) => handleKeyDown(e, 'toDate')} />
+                        </div>
+                        <div className="st-field st-field--date">
+                            <label>To (BS) <span className="req">*</span></label>
+                            <input type="text" id="toDate" ref={toDateRef} className={dateErrors.toDate ? 'is-invalid' : ''} value={dateRange.toDate || ''} onChange={(e) => { const v = e.target.value.replace(/[^0-9/-]/g, '').slice(0, 10); setDateRange(p => ({ ...p, toDate: v, toDateAd: convertBsToAd(v) || p.toDateAd })); setDateErrors(p => ({ ...p, toDate: '' })); }} onKeyDown={(e) => handleKeyDown(e, 'toDateAd')} onBlur={(e) => { const d = e.target.value.trim(); if (!d) return; const c = validateAndCorrectNepaliDate(d); if (!c) { const ad = convertBsToAd(currentNepaliDate); setDateRange(p => ({ ...p, toDate: currentNepaliDate, toDateAd: ad })); setNotification({ show: true, message: 'Invalid Nepali date. Auto-corrected.', type: 'warning' }); } }} placeholder="YYYY-MM-DD" autoComplete="off" />
+                            {dateErrors.toDate && <div className="st-field-error">{dateErrors.toDate}</div>}
+                        </div>
+                        <div className="st-field st-field--date">
+                            <label>To (AD)</label>
+                            <input type="date" id="toDateAd" value={dateRange.toDateAd || ''} onChange={(e) => { const v = e.target.value; setDateRange(p => ({ ...p, toDateAd: v, toDate: convertAdToBs(v) || p.toDate })); }} onKeyDown={(e) => handleKeyDown(e, 'generateReport')} />
+                        </div>
+
+                        <div className="st-field st-field--select">
+                            <label>Pay Mode</label>
+                            <select id="paymentMode" value={data.paymentMode} onChange={handlePaymentModeChange}>
+                                <option value="all">All (Inc. Cash)</option>
+                                <option value="exclude-cash">All (Exc. Cash)</option>
+                                <option value="cash">Cash</option>
+                                <option value="credit">Credit</option>
+                            </select>
+                        </div>
+
+                        <div className="st-field st-field--select">
+                            <label>View</label>
+                            <select id="viewMode" value={viewMode} onChange={handleViewModeChange}>
+                                <option value="regular">Regular</option>
+                                <option value="itemwise">Itemwise</option>
+                            </select>
+                        </div>
+
+                        <button type="button" id="generateReport" ref={generateReportRef} className="st-btn-gen" onClick={handleGenerateReport} disabled={loading || !data.selectedCompany}>
+                            {loading ? <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12 }} /> : <><FiSearch className="me-1" /> Generate</>}
+                        </button>
+
+                        <div className="st-toolbar-divider" />
+
+                        <div className="st-field st-field--search">
+                            <label>Search</label>
+                            <div className="st-search-wrap">
+                                <FiSearch className="st-search-icon" />
+                                <input type="text" id="searchInput" ref={searchInputRef} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} disabled={data.statement.length === 0 && data.itemwiseStatement.length === 0} autoComplete="off" />
+                                {searchQuery && <button className="st-search-clear" onClick={() => setSearchQuery('')}>×</button>}
+                            </div>
+                        </div>
+                    </div>
+
+                    {error && (
+                        <div className="st-alert">
+                            <i className="bi bi-exclamation-circle" />{error}
+                            <button type="button" className="btn-close btn-sm ms-auto" onClick={() => setError(null)} />
+                        </div>
+                    )}
+
+                    {/* Main Content */}
+                    <div className="st-main">
+                        {/* ... (Keep all your main content rendering logic completely unchanged) ... */}
+                        {data.statement.length === 0 && data.itemwiseStatement.length === 0 && !loading ? (
+                            <div className="st-state">
+                                <FiCalendar size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                                <h3>Select party & generate</h3>
+                                <p>Choose an account and date range, then click Generate.</p>
+                            </div>
+                        ) : loading ? (
+                            <div className="st-state"><div className="spinner-border text-primary" /><p>Loading statement...</p></div>
+                        ) : viewMode === 'regular' ? (
+                            filteredStatement.length === 0 ? (
+                                <div className="st-state"><FiSearch size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} /><h3>No transactions found</h3><p>{searchQuery ? 'Try a different search term' : 'No data for the selected criteria'}</p></div>
+                            ) : (
+                                <>
+                                    <div className="st-main__bar">
+                                        <span><strong>{filteredStatement.length}</strong> transactions</span>
+                                        <span>{dateRange.fromDate} — {dateRange.toDate}</span>
+                                    </div>
+                                    <div className="st-table-wrap" ref={tableBodyRef}>
+                                        <AutoSizer>
+                                            {({ height, width }) => {
+                                                const totalWidth = Object.values(columnWidths).reduce((a, b) => a + b, 0);
+                                                return (
+                                                    <div style={{ position: 'relative', height: height, width: Math.max(width, totalWidth) }}>
+                                                        <TableHeader />
+                                                        <List height={height - 28} itemCount={filteredStatement.length} itemSize={28} width={Math.max(width, totalWidth)} itemData={{ statement: filteredStatement, selectedRowIndex, formatCurrency, formatBalance, handleRowClick, handleRowDoubleClick }}>{TableRow}</List>
+                                                    </div>
+                                                );
+                                            }}
+                                        </AutoSizer>
+                                    </div>
+                                    <div className="st-footer">
+                                        <div className="st-footer-cell" style={{ width: `${columnWidths.bsDate + columnWidths.adDate + columnWidths.voucherNo + columnWidths.voucherType + columnWidths.payMode + columnWidths.account}px`, flexShrink: 0 }}><strong>Totals:</strong></div>
+                                        <div className="st-footer-cell st-cell--end" style={{ width: `${columnWidths.debit}px`, flexShrink: 0 }}><strong>{formatCurrency(data.totalDebit)}</strong></div>
+                                        <div className="st-footer-cell st-cell--end" style={{ width: `${columnWidths.credit}px`, flexShrink: 0 }}><strong>{formatCurrency(data.totalCredit)}</strong></div>
+                                        <div className="st-footer-cell st-cell--end" style={{ width: `${columnWidths.balance}px`, flexShrink: 0 }}><strong>{formatBalance(filteredStatement[filteredStatement.length - 1]?.balance || 0)}</strong></div>
+                                    </div>
+                                </>
+                            )
+                        ) : (
+                            filteredItemwiseStatement.length === 0 ? (
+                                <div className="st-state"><FiBox size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} /><h3>No items found</h3><p>No item transactions for the selected criteria</p></div>
+                            ) : (
+                                <>
+                                    <div className="st-main__bar">
+                                        <span><strong>{filteredItemwiseStatement.length}</strong> bills</span>
+                                        <span>{dateRange.fromDate} — {dateRange.toDate}</span>
+                                    </div>
+                                    <div className="st-table-wrap" style={{ overflow: 'auto' }}>
+                                        <table className="st-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Miti</th><th>Date</th><th>Vch No.</th><th>Type</th><th>Pay Mode</th>
+                                                    <th>Item Name</th><th className="num">Qty</th><th>Unit</th><th className="num">Rate</th>
+                                                    <th className="num">Disc</th><th className="num">Taxable</th><th className="num">VAT</th><th className="num">Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filteredItemwiseStatement.map((bill, bi) => (
+                                                    bill.items && bill.items.map((item, ii) => {
+                                                        const isNepaliFormatLocal = company.dateFormat === 'nepali';
+                                                        const bsDate = bill.nepaliDate || (isNepaliFormatLocal ? new NepaliDate(bill.nepaliDate).format('YYYY-MM-DD') : '');
+                                                        const adDate = bill.date ? new Date(bill.date).toLocaleDateString() : '';
+                                                        const qty = parseFloat(item.quantity) || 0;
+                                                        const rate = item.puPrice || item.price || 0;
+                                                        const disc = item.discountAmountPerItem || 0;
+                                                        const taxable = item.taxableAmount || 0;
+                                                        const vat = item.vatAmount || 0;
+                                                        const total = item.totalAmount || (taxable + vat);
+                                                        return (
+                                                            <tr key={`${bill.billNumber}-${ii}`} className={((bi + ii) % 2 === 0) ? '' : 'st-row-alt'}>
+                                                                <td>{bsDate}</td><td>{adDate}</td><td>{bill.billNumber || ''}</td><td>{bill.type || ''}</td><td>{bill.paymentMode || ''}</td>
+                                                                <td style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>{item.item?.name || item.productName || 'N/A'}</td>
+                                                                <td className="num">{qty.toFixed(2)}</td><td>{item.unit?.name || ''}</td><td className="num">{formatCurrency(rate)}</td>
+                                                                <td className="num">{formatCurrency(disc)}</td><td className="num">{formatCurrency(taxable)}</td><td className="num">{formatCurrency(vat)}</td><td className="num">{formatCurrency(total)}</td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                ))}
+                                            </tbody>
+                                            {(() => {
+                                                let gQty = 0, gAmt = 0, gVat = 0, gTax = 0, gDisc = 0;
+                                                filteredItemwiseStatement.forEach((bill) => {
+                                                    if (bill.items && bill.items.length > 0) bill.items.forEach((item) => {
+                                                        gQty += parseFloat(item.quantity) || 0;
+                                                        gDisc += item.discountAmountPerItem || 0;
+                                                        gTax += item.taxableAmount || 0;
+                                                        gVat += item.vatAmount || 0;
+                                                        gAmt += item.totalAmount || ((item.taxableAmount || 0) + (item.vatAmount || 0));
+                                                    });
+                                                });
+                                                return (
+                                                    <tfoot>
+                                                        <tr className="st-row-total">
+                                                            <td colSpan="6" className="text-end"><strong>Grand Totals:</strong></td>
+                                                            <td className="num"><strong>{gQty.toFixed(2)}</strong></td><td></td><td></td>
+                                                            <td className="num"><strong>{formatCurrency(gDisc)}</strong></td>
+                                                            <td className="num"><strong>{formatCurrency(gTax)}</strong></td>
+                                                            <td className="num"><strong>{formatCurrency(gVat)}</strong></td>
+                                                            <td className="num"><strong>{formatCurrency(gAmt)}</strong></td>
+                                                        </tr>
+                                                    </tfoot>
+                                                );
+                                            })()}
+                                        </table>
+                                    </div>
+                                </>
+                            )
+                        )}
+                    </div>
+                </div>
+
+                {/* Modals... */}
+
+                {/* Account Selection Modal */}
+                {/* {showAccountModal && (
                 <div className="st-modal-overlay" onClick={() => setShowAccountModal(false)}>
                     <div className="st-modal st-modal--xl" onClick={e => e.stopPropagation()}>
                         <div className="st-modal-header">
@@ -1429,91 +1700,91 @@ const Statement = () => {
                 </div>
             )} */}
 
-            {showAccountModal && (
-                <AccountModalForPaymentReceipt
-                    show={showAccountModal}
-                    onClose={() => {
-                        setShowAccountModal(false);
-                        // Focus back to the account field after closing
-                        setTimeout(() => {
-                            const accountInput = document.getElementById('account');
-                            if (accountInput) accountInput.focus();
-                        }, 100);
-                    }}
-                    onSelectAccount={selectAccount}
-                    accounts={accounts}
-                    totalAccounts={totalAccounts}
-                    isSearching={isAccountSearching}
-                    hasMore={hasMoreAccountResults}
-                    searchQuery={accountSearchQuery}
-                    onSearch={(query) => {
-                        // Handle search
-                        setAccountSearchQuery(query);
-                        setAccountSearchPage(1);
+                {showAccountModal && (
+                    <AccountModalForPaymentReceipt
+                        show={showAccountModal}
+                        onClose={() => {
+                            setShowAccountModal(false);
+                            // Focus back to the account field after closing
+                            setTimeout(() => {
+                                const accountInput = document.getElementById('account');
+                                if (accountInput) accountInput.focus();
+                            }, 100);
+                        }}
+                        onSelectAccount={selectAccount}
+                        accounts={accounts}
+                        totalAccounts={totalAccounts}
+                        isSearching={isAccountSearching}
+                        hasMore={hasMoreAccountResults}
+                        searchQuery={accountSearchQuery}
+                        onSearch={(query) => {
+                            // Handle search
+                            setAccountSearchQuery(query);
+                            setAccountSearchPage(1);
 
-                        if (query.trim() !== '' && accountShouldShowLastSearchResults) {
-                            setAccountShouldShowLastSearchResults(false);
-                            setAccountLastSearchQuery('');
-                        }
+                            if (query.trim() !== '' && accountShouldShowLastSearchResults) {
+                                setAccountShouldShowLastSearchResults(false);
+                                setAccountLastSearchQuery('');
+                            }
 
-                        // Debounced search
-                        const timer = setTimeout(() => {
-                            fetchAccountsFromBackend(query, 1);
-                        }, 300);
-                        return () => clearTimeout(timer);
-                    }}
-                    onLoadMore={loadMoreAccounts}
-                    page={accountSearchPage}
-                    onCreateAccount={() => {
-                        // Handle creating new account - you can implement this
-                        setShowAccountModal(false);
-                        // Optionally open account creation page in new tab or modal
-                        window.open('/retailer/accounts', '_blank');
-                        // Or navigate
-                        // navigate('/retailer/accounts');
-                    }}
-                    selectedAccountId={selectedAccountId}
-                />
-            )}
+                            // Debounced search
+                            const timer = setTimeout(() => {
+                                fetchAccountsFromBackend(query, 1);
+                            }, 300);
+                            return () => clearTimeout(timer);
+                        }}
+                        onLoadMore={loadMoreAccounts}
+                        page={accountSearchPage}
+                        onCreateAccount={() => {
+                            // Handle creating new account - you can implement this
+                            setShowAccountModal(false);
+                            // Optionally open account creation page in new tab or modal
+                            window.open('/retailer/accounts', '_blank');
+                            // Or navigate
+                            // navigate('/retailer/accounts');
+                        }}
+                        selectedAccountId={selectedAccountId}
+                    />
+                )}
 
-            {/* WhatsApp Modal */}
-            {showWhatsAppModal && (
-                <div className="st-modal-overlay" onClick={() => { setShowWhatsAppModal(false); setWhatsAppNumber(''); setGeneratedShareLink(''); }}>
-                    <div className="st-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
-                        <div className="st-modal-header">
-                            <h5><i className="bi bi-whatsapp text-success me-2" />Share via WhatsApp</h5>
-                            <button type="button" className="btn-close" onClick={() => { setShowWhatsAppModal(false); setWhatsAppNumber(''); setGeneratedShareLink(''); }} />
-                        </div>
-                        <div className="st-modal-body">
-                            {data.selectedAccountName && <div className="st-info-box"><strong>Account:</strong> {data.selectedAccountName}{data.selectedAccountPhone && <span className="ms-2 text-muted"><i className="bi bi-phone me-1" />{data.selectedAccountPhone}</span>}</div>}
-                            {generatedShareLink && (
-                                <div className="st-link-box">
-                                    <div className="d-flex align-items-center mb-2"><i className="bi bi-link-45deg text-success fs-5 me-2" /><strong className="text-success">Permanent Link Generated</strong></div>
-                                    <div className="st-link-code"><code>{generatedShareLink}</code></div>
-                                    <small className="text-muted d-block mt-1"><i className="bi bi-info-circle me-1" />This link will always show the latest statement.</small>
-                                </div>
-                            )}
-                            <div className="mb-3"><label className="form-label fw-bold">WhatsApp Number <span className="text-danger">*</span></label>
-                                <div className="input-group"><span className="input-group-text"><i className="bi bi-plus-circle" /></span><input type="text" className="form-control" placeholder="e.g., 9779812345678" value={whatsAppNumber} onChange={(e) => setWhatsAppNumber(e.target.value.replace(/[^0-9]/g, ''))} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') handleSendWhatsApp(); }} /></div>
-                                <small className="text-muted"><i className="bi bi-info-circle me-1" />Enter number without + sign (e.g., 9779812345678)</small>
+                {/* WhatsApp Modal */}
+                {showWhatsAppModal && (
+                    <div className="st-modal-overlay" onClick={() => { setShowWhatsAppModal(false); setWhatsAppNumber(''); setGeneratedShareLink(''); }}>
+                        <div className="st-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+                            <div className="st-modal-header">
+                                <h5><i className="bi bi-whatsapp text-success me-2" />Share via WhatsApp</h5>
+                                <button type="button" className="btn-close" onClick={() => { setShowWhatsAppModal(false); setWhatsAppNumber(''); setGeneratedShareLink(''); }} />
                             </div>
-                            <div><label className="form-label fw-bold">Message Preview</label><div className="st-msg-preview">{whatsAppMessage || 'Generating message...'}</div></div>
-                        </div>
-                        <div className="st-modal-footer">
-                            <button className="st-btn-secondary" onClick={() => { setShowWhatsAppModal(false); setWhatsAppNumber(''); setGeneratedShareLink(''); }} disabled={isGeneratingLink}>Cancel</button>
-                            <button className="st-btn-wa st-btn-wa--solid" onClick={handleSendWhatsApp} disabled={!whatsAppNumber || whatsAppNumber.length < 10 || isGeneratingLink || !generatedShareLink}><i className="bi bi-whatsapp me-1" />Send Link</button>
+                            <div className="st-modal-body">
+                                {data.selectedAccountName && <div className="st-info-box"><strong>Account:</strong> {data.selectedAccountName}{data.selectedAccountPhone && <span className="ms-2 text-muted"><i className="bi bi-phone me-1" />{data.selectedAccountPhone}</span>}</div>}
+                                {generatedShareLink && (
+                                    <div className="st-link-box">
+                                        <div className="d-flex align-items-center mb-2"><i className="bi bi-link-45deg text-success fs-5 me-2" /><strong className="text-success">Permanent Link Generated</strong></div>
+                                        <div className="st-link-code"><code>{generatedShareLink}</code></div>
+                                        <small className="text-muted d-block mt-1"><i className="bi bi-info-circle me-1" />This link will always show the latest statement.</small>
+                                    </div>
+                                )}
+                                <div className="mb-3"><label className="form-label fw-bold">WhatsApp Number <span className="text-danger">*</span></label>
+                                    <div className="input-group"><span className="input-group-text"><i className="bi bi-plus-circle" /></span><input type="text" className="form-control" placeholder="e.g., 9779812345678" value={whatsAppNumber} onChange={(e) => setWhatsAppNumber(e.target.value.replace(/[^0-9]/g, ''))} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') handleSendWhatsApp(); }} /></div>
+                                    <small className="text-muted"><i className="bi bi-info-circle me-1" />Enter number without + sign (e.g., 9779812345678)</small>
+                                </div>
+                                <div><label className="form-label fw-bold">Message Preview</label><div className="st-msg-preview">{whatsAppMessage || 'Generating message...'}</div></div>
+                            </div>
+                            <div className="st-modal-footer">
+                                <button className="st-btn-secondary" onClick={() => { setShowWhatsAppModal(false); setWhatsAppNumber(''); setGeneratedShareLink(''); }} disabled={isGeneratingLink}>Cancel</button>
+                                <button className="st-btn-wa st-btn-wa--solid" onClick={handleSendWhatsApp} disabled={!whatsAppNumber || whatsAppNumber.length < 10 || isGeneratingLink || !generatedShareLink}><i className="bi bi-whatsapp me-1" />Send Link</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Cash Settlement Modal */}
-            <CashSettlementModal show={showCashSettlementModal} onClose={() => { setShowCashSettlementModal(false); setSelectedTransaction(null); }} transaction={selectedTransaction} onSettle={handleCashSettlement} formatCurrency={formatCurrency} />
+                {/* Cash Settlement Modal */}
+                <CashSettlementModal show={showCashSettlementModal} onClose={() => { setShowCashSettlementModal(false); setSelectedTransaction(null); }} transaction={selectedTransaction} onSettle={handleCashSettlement} formatCurrency={formatCurrency} />
 
-            {showProductModal && <ProductModal onClose={() => setShowProductModal(false)} />}
-            <NotificationToast show={notification.show} message={notification.message} type={notification.type} duration={notification.duration} onClose={() => setNotification({ ...notification, show: false })} />
-        </div>
-    );
+                {showProductModal && <ProductModal onClose={() => setShowProductModal(false)} />}
+                <NotificationToast show={notification.show} message={notification.message} type={notification.type} duration={notification.duration} onClose={() => setNotification({ ...notification, show: false })} />
+            </div>
+            );
 };
 
-export default Statement;
+            export default Statement;

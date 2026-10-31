@@ -51,6 +51,7 @@ using SkyForge.Services.AuditReportServices;
 using SkyForge.Services.Retailer.CashCounterServices;
 using SkyForge.Services.AttendanceServices;
 using SkyForge.Services.DeviceServices;
+using PuppeteerSharp;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -212,8 +213,7 @@ builder.Services.AddScoped<ICashCounterService, CashCounterService>();
 
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuditReportService, AuditReportService>();
-
-
+builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddSingleton<IAuthorizationHandler, TradeTypeAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();
 

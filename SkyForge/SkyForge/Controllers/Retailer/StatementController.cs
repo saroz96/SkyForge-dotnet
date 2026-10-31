@@ -7,6 +7,7 @@ using SkyForge.Models.AccountModel;
 using SkyForge.Models.CompanyModel;
 using SkyForge.Models.Retailer.TransactionModel;
 using SkyForge.Models.Shared;
+using SkyForge.Services;
 using SkyForge.Services.Retailer.StatementServices;
 using System.Security.Claims;
 
@@ -20,6 +21,8 @@ namespace SkyForge.Controllers.Retailer
         private readonly ApplicationDbContext _context;
         private readonly ILogger<StatementController> _logger;
         private readonly IStatementService _statementService;
+        private readonly IEmailService _emailService;
+        private readonly IPdfService _pdfService;
         private readonly IConfiguration _config;
 
 
@@ -27,15 +30,378 @@ namespace SkyForge.Controllers.Retailer
             ApplicationDbContext context,
             ILogger<StatementController> logger,
             IStatementService statementService,
+            IEmailService emailService,
+            IPdfService pdfService,
              IConfiguration config)
         {
             _context = context;
             _logger = logger;
             _statementService = statementService;
+            _emailService = emailService;
+            _pdfService = pdfService;
             _config = config;
         }
 
+        [HttpPost("statement/{accountId}/email")]
+        public async Task<IActionResult> EmailStatement(
+    Guid accountId,
+    [FromQuery] DateTime? fromDate,
+    [FromQuery] DateTime? toDate,
+    [FromQuery] string? paymentMode = "all",
+    [FromQuery] string? fromDateBs = null,  // 👈 Added for Nepali Date
+    [FromQuery] string? toDateBs = null)    // 👈 Added for Nepali Date
+        {
+            try
+            {
+                // 1. Validate Company
+                var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+                if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out Guid companyId))
+                    return BadRequest(new { success = false, error = "No company selected." });
+
+                // 2. Find Account & Company details
+                var account = await _context.Accounts
+                    .Include(a => a.Company)
+                    .FirstOrDefaultAsync(a => a.Id == accountId && a.CompanyId == companyId);
+
+                if (account == null || string.IsNullOrWhiteSpace(account.Email))
+                    return BadRequest(new { success = false, error = "Account or Email not found. Please update the client's profile." });
+
+                // 3. Get or Generate the Share Token
+                var tokenRecord = await _context.AccountShareTokens.FirstOrDefaultAsync(t => t.AccountId == accountId && t.IsActive);
+                string shareLink;
+                var frontendBase = _config["AppSettings:FrontendBaseUrl"]?.TrimEnd('/') ?? "https://amsacc.com";
+
+                if (tokenRecord == null)
+                {
+                    var newToken = GenerateUniqueToken();
+                    _context.AccountShareTokens.Add(new AccountShareToken
+                    {
+                        Id = Guid.NewGuid(),
+                        AccountId = accountId,
+                        Token = newToken,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    await _context.SaveChangesAsync();
+                    shareLink = $"{frontendBase}/s/{newToken}";
+                }
+                else
+                {
+                    shareLink = $"{frontendBase}/s/{tokenRecord.Token}";
+                }
+
+                // ============================================================
+                // 4. FETCH STATEMENT DATA & GENERATE PDF
+                // ============================================================
+                byte[] pdfBytes = null;
+                try
+                {
+                    Guid fiscalYearId = Guid.Empty;
+                    var fiscalYearIdClaim = User.FindFirst("fiscalYearId")?.Value;
+                    if (!Guid.TryParse(fiscalYearIdClaim, out fiscalYearId))
+                    {
+                        var activeFy = await _context.FiscalYears.FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsActive);
+                        if (activeFy != null) fiscalYearId = activeFy.Id;
+                    }
+
+                    // Use the dates from the frontend, or fallback to the current month
+                    DateTime finalToDate = toDate ?? DateTime.UtcNow;
+                    DateTime finalFromDate = fromDate ?? new DateTime(finalToDate.Year, finalToDate.Month, 1);
+
+                    var statementRequest = new StatementRequestDTO
+                    {
+                        AccountId = accountId,
+                        FromDate = finalFromDate,
+                        ToDate = finalToDate,
+                        PaymentMode = paymentMode ?? "all",
+                        IncludeItems = false,
+                        DateFormat = account.Company?.DateFormat?.ToString() ?? "english"
+                    };
+
+                    var userId = Guid.Parse(User.FindFirst("userId")?.Value ?? Guid.Empty.ToString());
+
+                    var statementResponse = await _statementService.GetStatementAsync(
+                        companyId, fiscalYearId, userId, statementRequest
+                    );
+
+                    if (statementResponse.Success)
+                    {
+                        // ✅ Fallback to AD string if BS string is somehow missing
+                        string displayFromDate = !string.IsNullOrEmpty(fromDateBs) ? fromDateBs : finalFromDate.ToString("yyyy-MM-dd");
+                        string displayToDate = !string.IsNullOrEmpty(toDateBs) ? toDateBs : finalToDate.ToString("yyyy-MM-dd");
+
+                        // ✅ Pass the BS date strings to the HTML generator
+                        string htmlContent = GeneratePrintHtmlForEmail(
+                            account,
+                            account.Company,
+                            statementResponse.Data,
+                            displayFromDate,
+                            displayToDate
+                        );
+
+                        // Generate the PDF
+                        pdfBytes = await _pdfService.GeneratePdfFromHtmlAsync(htmlContent);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to generate PDF attachment, email will send without it.");
+                }
+
+                // ============================================================
+                // 5. Send the Email
+                // ============================================================
+                string companyName = account.Company?.Name ?? "Ams Software";
+
+                await _emailService.SendStatementEmailAsync(
+                    account.Email.Trim(),
+                    account.Name,
+                    shareLink,
+                    companyName,
+                    pdfBytes
+                );
+
+                return Ok(new { success = true, message = $"Statement and PDF emailed successfully to {account.Email}" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending statement email for AccountId: {AccountId}", accountId);
+                return StatusCode(500, new { success = false, error = "Failed to send email. Please try again." });
+            }
+        }
+
+        //     private string GeneratePrintHtmlForEmail(Account account, Company company, StatementDataDTO data, string displayFromDate, string displayToDate)
+        //     {
+        //         var sb = new System.Text.StringBuilder();
+
+        //         sb.Append(@"
+        // <html>
+        // <head>
+        //     <meta charset='UTF-8'>
+        //     <style>
+        //         @page { margin: 5mm; size: A4 portrait; } 
+        //         body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; margin: 0; padding: 5mm; background: #fff; color: #000; }
+        //         table { width: 100%; border-collapse: collapse; page-break-inside: auto; font-size: 10px; } 
+        //         tr { page-break-inside: avoid; page-break-after: auto; }
+        //         th, td { border: 1px solid #333; padding: 4px 6px; text-align: left; white-space: nowrap; }
+        //         th { background-color: #e8e8e8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 11px; font-weight: 700; color: #1a1a1a; }
+        //         td { font-size: 10px; padding: 4px 6px; } 
+        //         .print-header { text-align: center; margin-bottom: 10px; }
+        //         .text-end { text-align: right; } 
+        //         .report-title { text-align: center; text-decoration: underline; font-size: 14px; font-weight: 700; margin: 6px 0; color: #1a1a1a; letter-spacing: 0.5px; }
+        //         .grand-total-row td { font-weight: 700; border-top: 3px double #000; background-color: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        //         .company-name { font-size: 18px; font-weight: 700; margin: 0; padding: 0; color: #1a1a1a; letter-spacing: 1px; }
+        //         .company-details { font-size: 10px; margin: 4px 0; color: #333; line-height: 1.4; }
+        //         .statement-info { font-size: 10px; margin: 4px 0; color: #444; line-height: 1.6; }
+        //         .statement-info strong { font-weight: 600; color: #1a1a1a; }
+        //         .footer { margin-top: 15px; font-size: 9px; text-align: center; border-top: 1px solid #ccc; padding-top: 8px; color: #666; }
+        //         .total-label { font-size: 11px; font-weight: 600; }
+        //     </style>
+        // </head>
+        // <body>");
+
+        //         // Header Info
+        //         string partyDisplayName = $"{account.UniqueNumber} - {account.Name}";
+        //         string address = $"{company.Address}{(string.IsNullOrEmpty(company.City) ? "" : ", " + company.City)}";
+
+        //         // Convert AD to BS for display (Assuming you handle date formatting on frontend, we'll use raw string for now or map it)
+        //         // Note: For exact BS dates, your StatementData should already contain the NepaliDate strings from the DB.
+
+        //         sb.Append($@"
+        //     <div class='print-header'>
+        //         <div class='company-name'>{company.Name}</div>
+        //         <div class='company-details'>
+        //             {address}<br>
+        //             PAN: {company.Pan} | Phone: {company.Phone}
+        //         </div>
+        //         <hr style='margin:6px 0; border: 1px solid #ccc;'>
+        //         <div class='report-title'>STATEMENT OF ACCOUNT</div>
+        //         <div class='statement-info'>
+        //             <strong>Party:</strong> {partyDisplayName} &nbsp;|&nbsp; 
+        //             <strong>From (BS):</strong> {displayFromDate:yyyy-MM-dd} &nbsp;|&nbsp; 
+        //             <strong>To (BS):</strong> {displayToDate:yyyy-MM-dd} &nbsp;|&nbsp; 
+        //             <strong>Payment Mode:</strong> {data.PaymentMode}
+        //         </div>
+        //     </div>
+        //     <table>
+        //         <thead>
+        //             <tr>
+        //                 <th>Miti</th><th>Date</th><th>Vch No.</th><th>Type</th><th>Pay Mode</th><th>Account</th>
+        //                 <th class='text-end'>Debit</th><th class='text-end'>Credit</th><th class='text-end'>Balance</th>
+        //             </tr>
+        //         </thead>
+        //         <tbody>");
+
+        //         decimal runningBalance = data.OpeningBalance;
+        //         decimal totalDebit = 0, totalCredit = 0;
+
+        //         foreach (var item in data.Statement)
+        //         {
+        //             decimal debit = item.Debit;
+        //             decimal credit = item.Credit;
+        //             runningBalance += debit - credit;
+        //             totalDebit += debit;
+        //             totalCredit += credit;
+
+        //             string balanceText = runningBalance > 0 ? $"{Math.Abs(runningBalance):N2} Dr" : $"{Math.Abs(runningBalance):N2} Cr";
+
+        //             // Use the exact same Account Name logic as your React code
+        //             string accountName = item.AccountType == "Opening" ? "Opening" :
+        //                 (item.PaymentReceiptType ?? item.AccountType ?? item.PurchaseSalesType ?? item.PurchaseSalesReturnType ?? item.JournalAccountType ?? "");
+
+        //             // Dates (Use NepaliDate from DB if available, else fallback to AD)
+        //             string bsDate = !string.IsNullOrEmpty(item.NepaliDate) ? item.NepaliDate : "-";
+        //             string adDate = item.Date.HasValue ? item.Date.Value.ToString("M/d/yyyy") : "-";
+
+        //             sb.Append($@"
+        //         <tr>
+        //             <td>{bsDate}</td>
+        //             <td>{adDate}</td>
+        //             <td>{item.BillNumber}</td>
+        //             <td>{item.Type}</td>
+        //             <td>{item.PaymentMode}</td>
+        //             <td style='white-space:normal; word-wrap:break-word; max-width:150px;'>{accountName}</td>
+        //             <td class='text-end'>{(debit > 0 ? debit.ToString("N2") : "-")}</td>
+        //             <td class='text-end'>{(credit > 0 ? credit.ToString("N2") : "-")}</td>
+        //             <td class='text-end'>{balanceText}</td>
+        //         </tr>");
+        //         }
+
+        //         string finalBalanceText = runningBalance > 0 ? $"{Math.Abs(runningBalance):N2} Dr" : $"{Math.Abs(runningBalance):N2} Cr";
+
+        //         sb.Append($@"
+        //         </tbody>
+        //         <tfoot>
+        //             <tr class='grand-total-row'>
+        //                 <td colspan='6' class='text-end total-label'>TOTALS</td>
+        //                 <td class='text-end total-label'>{totalDebit:N2}</td>
+        //                 <td class='text-end total-label'>{totalCredit:N2}</td>
+        //                 <td class='text-end total-label'>{finalBalanceText}</td>
+        //             </tr>
+        //         </tfoot>
+        //     </table>
+        //     <div class='footer'>Generated on: {DateTime.Now:yyyy-MM-dd HH:mm:ss} | Powered by Ams Software</div>
+        // </body>
+        // </html>");
+
+        //         return sb.ToString();
+        //     }
+
         // GET: api/retailer/statement
+
+        private string GeneratePrintHtmlForEmail(Account account, Company company, StatementDataDTO data, string displayFromDate, string displayToDate)
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.Append(@"
+    <html>
+    <head>
+        <meta charset='UTF-8'>
+        <style>
+            @page { margin: 5mm; size: A4 portrait; }
+            body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; margin: 0; padding: 5mm; background: #fff; color: #000; }
+            table { width: 100%; border-collapse: collapse; page-break-inside: auto; font-size: 10px; } 
+            tr { page-break-inside: avoid; page-break-after: auto; }
+            th, td { border: 1px solid #333; padding: 4px 6px; text-align: left; white-space: nowrap; }
+            th { background-color: #e8e8e8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 11px; font-weight: 700; color: #1a1a1a; }
+            td { font-size: 10px; padding: 4px 6px; } 
+            .print-header { text-align: center; margin-bottom: 10px; }
+            .text-end { text-align: right; } 
+            .report-title { text-align: center; text-decoration: underline; font-size: 14px; font-weight: 700; margin: 6px 0; color: #1a1a1a; letter-spacing: 0.5px; }
+            
+            /* ✅ Ensure the grand total only appears once at the end */
+            .grand-total-row td { font-weight: 700; border-top: 3px double #000; background-color: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; page-break-inside: avoid; }
+            
+            .company-name { font-size: 18px; font-weight: 700; margin: 0; padding: 0; color: #1a1a1a; letter-spacing: 1px; }
+            .company-details { font-size: 10px; margin: 4px 0; color: #333; line-height: 1.4; }
+            .statement-info { font-size: 10px; margin: 4px 0; color: #444; line-height: 1.6; }
+            .statement-info strong { font-weight: 600; color: #1a1a1a; }
+            .footer { margin-top: 15px; font-size: 9px; text-align: center; border-top: 1px solid #ccc; padding-top: 8px; color: #666; }
+            .total-label { font-size: 11px; font-weight: 600; }
+        </style>
+    </head>
+    <body>");
+
+            string partyDisplayName = $"{account.UniqueNumber} - {account.Name}";
+            string address = $"{company.Address}{(string.IsNullOrEmpty(company.City) ? "" : ", " + company.City)}";
+
+            sb.Append($@"
+        <div class='print-header'>
+            <div class='company-name'>{company.Name}</div>
+            <div class='company-details'>
+                {address}<br>
+                PAN: {company.Pan} | Phone: {company.Phone}
+            </div>
+            <hr style='margin:6px 0; border: 1px solid #ccc;'>
+            <div class='report-title'>STATEMENT OF ACCOUNT</div>
+            <div class='statement-info'>
+                <strong>Party:</strong> {partyDisplayName} &nbsp;|&nbsp; 
+                <strong>From (BS):</strong> {displayFromDate} &nbsp;|&nbsp; 
+                <strong>To (BS):</strong> {displayToDate} &nbsp;|&nbsp; 
+                <strong>Payment Mode:</strong> {data.PaymentMode}
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Miti</th><th>Date</th><th>Vch No.</th><th>Type</th><th>Pay Mode</th><th>Account</th>
+                    <th class='text-end'>Debit</th><th class='text-end'>Credit</th><th class='text-end'>Balance</th>
+                </tr>
+            </thead>
+            <tbody>");
+
+            decimal runningBalance = data.OpeningBalance;
+            decimal totalDebit = 0, totalCredit = 0;
+
+            foreach (var item in data.Statement)
+            {
+                decimal debit = item.Debit;
+                decimal credit = item.Credit;
+                runningBalance += debit - credit;
+                totalDebit += debit;
+                totalCredit += credit;
+
+                string balanceText = runningBalance > 0 ? $"{Math.Abs(runningBalance):N2} Dr" : $"{Math.Abs(runningBalance):N2} Cr";
+
+                string accountName = item.AccountType == "Opening" ? "Opening" :
+                    (item.PaymentReceiptType ?? item.AccountType ?? item.PurchaseSalesType ?? item.PurchaseSalesReturnType ?? item.JournalAccountType ?? "");
+
+                string bsDate = !string.IsNullOrEmpty(item.NepaliDate) ? item.NepaliDate : "-";
+                string adDate = item.Date.HasValue ? item.Date.Value.ToString("M/d/yyyy") : "-";
+
+                sb.Append($@"
+            <tr>
+                <td>{bsDate}</td>
+                <td>{adDate}</td>
+                <td>{item.BillNumber}</td>
+                <td>{item.Type}</td>
+                <td>{item.PaymentMode}</td>
+                <td style='white-space:normal; word-wrap:break-word; max-width:150px;'>{accountName}</td>
+                <td class='text-end'>{(debit > 0 ? debit.ToString("N2") : "-")}</td>
+                <td class='text-end'>{(credit > 0 ? credit.ToString("N2") : "-")}</td>
+                <td class='text-end'>{balanceText}</td>
+            </tr>");
+            }
+
+            string finalBalanceText = runningBalance > 0 ? $"{Math.Abs(runningBalance):N2} Dr" : $"{Math.Abs(runningBalance):N2} Cr";
+
+            // ✅ CHANGED: Appended the totals as a regular row inside the tbody instead of a tfoot
+            sb.Append($@"
+                <tr class='grand-total-row'>
+                    <td colspan='6' class='text-end total-label'>TOTALS</td>
+                    <td class='text-end total-label'>{totalDebit:N2}</td>
+                    <td class='text-end total-label'>{totalCredit:N2}</td>
+                    <td class='text-end total-label'>{finalBalanceText}</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class='footer'>Generated on: {DateTime.Now:yyyy-MM-dd HH:mm:ss} | Powered by Ams Software</div>
+    </body>
+    </html>");
+
+            return sb.ToString();
+        }
+
         [HttpGet("statement")]
         public async Task<IActionResult> GetStatement(
             [FromQuery] Guid? account,
@@ -411,6 +777,181 @@ namespace SkyForge.Controllers.Retailer
         //     }
         // }
 
+        // [HttpPut("transaction/{id}/cash-settlement")]
+        // public async Task<IActionResult> UpdateCashSettlement(Guid id, [FromBody] CashSettlementRequest request)
+        // {
+        //     try
+        //     {
+        //         var companyIdClaim = User.FindFirst("currentCompany")?.Value;
+        //         if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out Guid companyIdGuid))
+        //             return BadRequest(new { success = false, error = "No company selected." });
+
+        //         // 1. Find the initial transaction
+        //         var transaction = await _context.Transactions
+        //             .FirstOrDefaultAsync(t => t.Id == id && t.CompanyId == companyIdGuid);
+
+        //         if (transaction == null)
+        //         {
+        //             transaction = await _context.Transactions
+        //                 .FirstOrDefaultAsync(t =>
+        //                     t.CompanyId == companyIdGuid &&
+        //                     (t.SalesBillId == id || t.PurchaseBillId == id || t.SalesReturnBillId == id || t.PurchaseReturnBillId == id));
+        //         }
+
+        //         if (transaction == null)
+        //             return NotFound(new { success = false, error = "Transaction not found." });
+
+        //         var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         Guid.TryParse(userId, out Guid userIdGuid);
+        //         var user = await _context.Users.Where(u => u.Id == userIdGuid).Select(u => new { u.Id, u.Name }).FirstOrDefaultAsync();
+
+        //         // 2. Find ALL transactions linked to this bill
+        //         IQueryable<Transaction> linkedTransactionsQuery = _context.Transactions
+        //             .Include(t => t.Account)
+        //             .Where(t => t.CompanyId == companyIdGuid);
+
+        //         if (transaction.SalesBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.SalesBillId == transaction.SalesBillId);
+        //         else if (transaction.PurchaseBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.PurchaseBillId == transaction.PurchaseBillId);
+        //         else if (transaction.SalesReturnBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.SalesReturnBillId == transaction.SalesReturnBillId);
+        //         else if (transaction.PurchaseReturnBillId.HasValue)
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.PurchaseReturnBillId == transaction.PurchaseReturnBillId);
+        //         else
+        //             linkedTransactionsQuery = linkedTransactionsQuery.Where(t => t.Id == transaction.Id);
+
+        //         var linkedTransactions = await linkedTransactionsQuery.ToListAsync();
+
+        //         decimal newSettledAmount = request.Amount ?? 0;
+        //         bool isSale = transaction.SalesBillId.HasValue;
+        //         bool isPurchase = transaction.PurchaseBillId.HasValue;
+        //         bool isSalesReturn = transaction.SalesReturnBillId.HasValue;
+        //         bool isPurchaseReturn = transaction.PurchaseReturnBillId.HasValue;
+
+        //         string finalStatus = request.Status;
+
+        //         // 3. Update settlement metadata on existing rows and Cash-in-Hand account
+        //         bool cashInHandRowFound = false;
+
+        //         foreach (var tx in linkedTransactions)
+        //         {
+        //             tx.CashSettlementStatus = finalStatus;
+        //             tx.CashSettlementDate = DateTime.UtcNow;
+        //             tx.CashSettlementUserId = userIdGuid;
+        //             tx.CashSettlementRemarks = request.Remarks;
+        //             tx.UpdatedAt = DateTime.UtcNow;
+
+        //             if (tx.Id == transaction.Id || tx.PaymentMode == PaymentMode.Cash)
+        //             {
+        //                 tx.CashSettlementAmount = newSettledAmount;
+        //             }
+
+        //             // Identify if this row is the Cash-in-Hand ledger row
+        //             bool isCashInHandRow = tx.PaymentMode == PaymentMode.Cash &&
+        //                                    (tx.Account?.AccountGroup?.Name == "Cash in Hand" ||
+        //                                     tx.Account?.Name == "Cash in Hand");
+
+        //             if (isCashInHandRow)
+        //             {
+        //                 cashInHandRowFound = true;
+        //                 if (isSale || isPurchaseReturn)
+        //                 {
+        //                     if (tx.TotalDebit > 0) tx.TotalDebit = newSettledAmount;
+        //                 }
+        //                 else if (isPurchase || isSalesReturn)
+        //                 {
+        //                     if (tx.TotalCredit > 0) tx.TotalCredit = newSettledAmount;
+        //                 }
+        //             }
+        //         }
+
+        //         // 4. If Cash-in-Hand row is missing (e.g., saved as Pending originally), CREATE it
+        //         if (!cashInHandRowFound && newSettledAmount > 0)
+        //         {
+        //             // ✅ Fetch the Cash in Hand account directly from the DB
+        //             var cashInHandAccount = await _context.Accounts
+        //                 .Include(a => a.AccountGroup)
+        //                 .FirstOrDefaultAsync(a => a.CompanyId == companyIdGuid &&
+        //                                           (a.AccountGroup.Name == "Cash in Hand" || a.Name == "Cash in Hand"));
+
+        //             if (cashInHandAccount != null)
+        //             {
+        //                 var newCashTx = new Transaction
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     CompanyId = companyIdGuid,
+        //                     AccountId = cashInHandAccount.Id, // ✅ Use the fetched ID
+        //                     SalesBillId = transaction.SalesBillId,
+        //                     PurchaseBillId = transaction.PurchaseBillId,
+        //                     SalesReturnBillId = transaction.SalesReturnBillId,
+        //                     PurchaseReturnBillId = transaction.PurchaseReturnBillId,
+        //                     BillNumber = transaction.BillNumber,
+        //                     IsType = TransactionIsType.Sale,
+        //                     Type = TransactionType.Sale,
+        //                     PurchaseSalesType = transaction.PurchaseSalesType,
+        //                     TotalDebit = (isSale || isPurchaseReturn) ? newSettledAmount : 0,
+        //                     TotalCredit = (isPurchase || isSalesReturn) ? newSettledAmount : 0,
+        //                     PaymentMode = PaymentMode.Cash,
+        //                     Date = transaction.Date,
+        //                     TransactionDate = transaction.TransactionDate,
+        //                     NepaliDate = transaction.NepaliDate,
+        //                     TransactionDateNepali = transaction.TransactionDateNepali,
+        //                     FiscalYearId = transaction.FiscalYearId,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     Status = TransactionStatus.Active,
+        //                     IsActive = true,
+
+        //                     // Settlement Metadata
+        //                     CashSettlementStatus = finalStatus,
+        //                     CashSettlementAmount = newSettledAmount,
+        //                     CashSettlementDate = DateTime.UtcNow,
+        //                     CashSettlementUserId = userIdGuid,
+        //                     CashSettlementRemarks = request.Remarks
+        //                 };
+
+        //                 await _context.Transactions.AddAsync(newCashTx);
+        //             }
+        //         }
+
+        //         // 5. Update Sales Bill Header
+        //         if (isSale)
+        //         {
+        //             var salesBill = await _context.SalesBills.FindAsync(transaction.SalesBillId.Value);
+        //             if (salesBill != null)
+        //             {
+        //                 salesBill.CashSettlementStatus = finalStatus;
+        //                 salesBill.CashSettlementDate = DateTime.UtcNow;
+        //                 salesBill.CashSettlementRemarks = request.Remarks;
+        //                 salesBill.CashReceivedAmount = newSettledAmount;
+        //                 salesBill.CashRemainingAmount = Math.Max(0, salesBill.TotalAmount - newSettledAmount);
+        //                 salesBill.CashSettlementType = finalStatus == "Partial" ? "partial" : "full";
+        //             }
+        //         }
+
+        //         await _context.SaveChangesAsync();
+
+        //         return Ok(new
+        //         {
+        //             success = true,
+        //             message = $"Cash settlement updated to {finalStatus}",
+        //             data = new
+        //             {
+        //                 status = finalStatus,
+        //                 date = DateTime.UtcNow,
+        //                 user = user?.Name ?? "Unknown User",
+        //                 remarks = request.Remarks,
+        //                 amount = newSettledAmount
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error updating cash settlement for transaction {TransactionId}", id);
+        //         return StatusCode(500, new { success = false, error = "Internal server error." });
+        //     }
+        // }
+
         [HttpPut("transaction/{id}/cash-settlement")]
         public async Task<IActionResult> UpdateCashSettlement(Guid id, [FromBody] CashSettlementRequest request)
         {
@@ -429,7 +970,8 @@ namespace SkyForge.Controllers.Retailer
                     transaction = await _context.Transactions
                         .FirstOrDefaultAsync(t =>
                             t.CompanyId == companyIdGuid &&
-                            (t.SalesBillId == id || t.PurchaseBillId == id || t.SalesReturnBillId == id || t.PurchaseReturnBillId == id));
+                            (t.SalesBillId == id || t.PurchaseBillId == id ||
+                             t.SalesReturnBillId == id || t.PurchaseReturnBillId == id));
                 }
 
                 if (transaction == null)
@@ -437,11 +979,15 @@ namespace SkyForge.Controllers.Retailer
 
                 var userId = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 Guid.TryParse(userId, out Guid userIdGuid);
-                var user = await _context.Users.Where(u => u.Id == userIdGuid).Select(u => new { u.Id, u.Name }).FirstOrDefaultAsync();
+                var user = await _context.Users
+                    .Where(u => u.Id == userIdGuid)
+                    .Select(u => new { u.Id, u.Name })
+                    .FirstOrDefaultAsync();
 
-                // 2. Find ALL transactions linked to this bill
+                // 2. Find ALL transactions linked to this bill — Include Account.AccountGroup
                 IQueryable<Transaction> linkedTransactionsQuery = _context.Transactions
                     .Include(t => t.Account)
+                        .ThenInclude(a => a.AccountGroup)          // ✅ critical
                     .Where(t => t.CompanyId == companyIdGuid);
 
                 if (transaction.SalesBillId.HasValue)
@@ -457,17 +1003,30 @@ namespace SkyForge.Controllers.Retailer
 
                 var linkedTransactions = await linkedTransactionsQuery.ToListAsync();
 
-                decimal newSettledAmount = request.Amount ?? 0;
+                decimal newSettledAmount = request.Amount ?? 0m;
                 bool isSale = transaction.SalesBillId.HasValue;
                 bool isPurchase = transaction.PurchaseBillId.HasValue;
                 bool isSalesReturn = transaction.SalesReturnBillId.HasValue;
                 bool isPurchaseReturn = transaction.PurchaseReturnBillId.HasValue;
 
                 string finalStatus = request.Status;
+                bool isPending = string.Equals(finalStatus, "Pending", StringComparison.OrdinalIgnoreCase);
 
-                // 3. Update settlement metadata on existing rows and Cash-in-Hand account
-                bool cashInHandRowFound = false;
+                // 3a. Locate existing Cash-in-Hand rows and party-receipt rows
+                var cashInHandRows = linkedTransactions
+                    .Where(tx => tx.PaymentMode == PaymentMode.Cash &&
+                                 (tx.Account?.AccountGroup?.Name == "Cash in Hand" ||
+                                  tx.Account?.Name == "Cash in Hand"))
+                    .ToList();
 
+                var partyReceiptRows = linkedTransactions
+                    .Where(tx => tx.Id != transaction.Id
+                                 && tx.PaymentMode == PaymentMode.Cash
+                                 && tx.TotalCredit > 0
+                                 && tx.AccountId == transaction.AccountId)
+                    .ToList();
+
+                // 3b. Update metadata on all rows first
                 foreach (var tx in linkedTransactions)
                 {
                     tx.CashSettlementStatus = finalStatus;
@@ -477,78 +1036,82 @@ namespace SkyForge.Controllers.Retailer
                     tx.UpdatedAt = DateTime.UtcNow;
 
                     if (tx.Id == transaction.Id || tx.PaymentMode == PaymentMode.Cash)
-                    {
-                        tx.CashSettlementAmount = newSettledAmount;
-                    }
-
-                    // Identify if this row is the Cash-in-Hand ledger row
-                    bool isCashInHandRow = tx.PaymentMode == PaymentMode.Cash &&
-                                           (tx.Account?.AccountGroup?.Name == "Cash in Hand" ||
-                                            tx.Account?.Name == "Cash in Hand");
-
-                    if (isCashInHandRow)
-                    {
-                        cashInHandRowFound = true;
-                        if (isSale || isPurchaseReturn)
-                        {
-                            if (tx.TotalDebit > 0) tx.TotalDebit = newSettledAmount;
-                        }
-                        else if (isPurchase || isSalesReturn)
-                        {
-                            if (tx.TotalCredit > 0) tx.TotalCredit = newSettledAmount;
-                        }
-                    }
+                        tx.CashSettlementAmount = isPending ? 0m : newSettledAmount;
                 }
 
-                // 4. If Cash-in-Hand row is missing (e.g., saved as Pending originally), CREATE it
-                if (!cashInHandRowFound && newSettledAmount > 0)
+                // 3c. Pending → strip all cash flow
+                if (isPending)
                 {
-                    // ✅ Fetch the Cash in Hand account directly from the DB
-                    var cashInHandAccount = await _context.Accounts
-                        .Include(a => a.AccountGroup)
-                        .FirstOrDefaultAsync(a => a.CompanyId == companyIdGuid &&
-                                                  (a.AccountGroup.Name == "Cash in Hand" || a.Name == "Cash in Hand"));
+                    if (cashInHandRows.Count > 0)
+                        _context.Transactions.RemoveRange(cashInHandRows);
 
-                    if (cashInHandAccount != null)
+                    if (partyReceiptRows.Count > 0)
+                        _context.Transactions.RemoveRange(partyReceiptRows);
+
+                    transaction.CashSettlementAmount = 0m;
+                }
+                else
+                {
+                    // Full/Partial → update existing cash row, or create if missing
+                    if (cashInHandRows.Count > 0)
                     {
-                        var newCashTx = new Transaction
+                        foreach (var row in cashInHandRows)
                         {
-                            Id = Guid.NewGuid(),
-                            CompanyId = companyIdGuid,
-                            AccountId = cashInHandAccount.Id, // ✅ Use the fetched ID
-                            SalesBillId = transaction.SalesBillId,
-                            PurchaseBillId = transaction.PurchaseBillId,
-                            SalesReturnBillId = transaction.SalesReturnBillId,
-                            PurchaseReturnBillId = transaction.PurchaseReturnBillId,
-                            BillNumber = transaction.BillNumber,
-                            IsType = TransactionIsType.Sale,
-                            Type = TransactionType.Sale,
-                            PurchaseSalesType = transaction.PurchaseSalesType,
-                            TotalDebit = (isSale || isPurchaseReturn) ? newSettledAmount : 0,
-                            TotalCredit = (isPurchase || isSalesReturn) ? newSettledAmount : 0,
-                            PaymentMode = PaymentMode.Cash,
-                            Date = transaction.Date,
-                            TransactionDate = transaction.TransactionDate,
-                            NepaliDate = transaction.NepaliDate,
-                            TransactionDateNepali = transaction.TransactionDateNepali,
-                            FiscalYearId = transaction.FiscalYearId,
-                            CreatedAt = DateTime.UtcNow,
-                            Status = TransactionStatus.Active,
-                            IsActive = true,
+                            if (isSale || isPurchaseReturn)
+                                row.TotalDebit = newSettledAmount;
+                            else if (isPurchase || isSalesReturn)
+                                row.TotalCredit = newSettledAmount;
 
-                            // Settlement Metadata
-                            CashSettlementStatus = finalStatus,
-                            CashSettlementAmount = newSettledAmount,
-                            CashSettlementDate = DateTime.UtcNow,
-                            CashSettlementUserId = userIdGuid,
-                            CashSettlementRemarks = request.Remarks
-                        };
+                            row.CashSettlementAmount = newSettledAmount;
+                        }
+                    }
+                    else if (newSettledAmount > 0m)
+                    {
+                        var cashInHandAccount = await _context.Accounts
+                            .Include(a => a.AccountGroup)
+                            .FirstOrDefaultAsync(a => a.CompanyId == companyIdGuid &&
+                                                      (a.AccountGroup.Name == "Cash in Hand" ||
+                                                       a.Name == "Cash in Hand"));
 
-                        await _context.Transactions.AddAsync(newCashTx);
+                        if (cashInHandAccount != null)
+                        {
+                            var newCashTx = new Transaction
+                            {
+                                Id = Guid.NewGuid(),
+                                CompanyId = companyIdGuid,
+                                AccountId = cashInHandAccount.Id,
+                                SalesBillId = transaction.SalesBillId,
+                                PurchaseBillId = transaction.PurchaseBillId,
+                                SalesReturnBillId = transaction.SalesReturnBillId,
+                                PurchaseReturnBillId = transaction.PurchaseReturnBillId,
+                                BillNumber = transaction.BillNumber,
+                                IsType = TransactionIsType.Sale,
+                                Type = TransactionType.Sale,
+                                PurchaseSalesType = transaction.PurchaseSalesType,
+                                TotalDebit = (isSale || isPurchaseReturn) ? newSettledAmount : 0,
+                                TotalCredit = (isPurchase || isSalesReturn) ? newSettledAmount : 0,
+                                PaymentMode = PaymentMode.Cash,
+                                Date = transaction.Date,
+                                TransactionDate = transaction.TransactionDate,
+                                NepaliDate = transaction.NepaliDate,
+                                TransactionDateNepali = transaction.TransactionDateNepali,
+                                FiscalYearId = transaction.FiscalYearId,
+                                CreatedAt = DateTime.UtcNow,
+                                Status = TransactionStatus.Active,
+                                IsActive = true,
+                                CashSettlementStatus = finalStatus,
+                                CashSettlementAmount = newSettledAmount,
+                                CashSettlementDate = DateTime.UtcNow,
+                                CashSettlementUserId = userIdGuid,
+                                CashSettlementRemarks = request.Remarks
+                            };
+
+                            await _context.Transactions.AddAsync(newCashTx);
+                        }
                     }
                 }
 
-                // 5. Update Sales Bill Header
+                // 4. Update Sales Bill header
                 if (isSale)
                 {
                     var salesBill = await _context.SalesBills.FindAsync(transaction.SalesBillId.Value);
@@ -557,9 +1120,19 @@ namespace SkyForge.Controllers.Retailer
                         salesBill.CashSettlementStatus = finalStatus;
                         salesBill.CashSettlementDate = DateTime.UtcNow;
                         salesBill.CashSettlementRemarks = request.Remarks;
-                        salesBill.CashReceivedAmount = newSettledAmount;
-                        salesBill.CashRemainingAmount = Math.Max(0, salesBill.TotalAmount - newSettledAmount);
-                        salesBill.CashSettlementType = finalStatus == "Partial" ? "partial" : "full";
+
+                        if (isPending)
+                        {
+                            salesBill.CashReceivedAmount = 0m;
+                            salesBill.CashRemainingAmount = salesBill.TotalAmount;
+                            salesBill.CashSettlementType = "pending";
+                        }
+                        else
+                        {
+                            salesBill.CashReceivedAmount = newSettledAmount;
+                            salesBill.CashRemainingAmount = Math.Max(0m, salesBill.TotalAmount - newSettledAmount);
+                            salesBill.CashSettlementType = newSettledAmount >= salesBill.TotalAmount ? "full" : "partial";
+                        }
                     }
                 }
 
@@ -575,7 +1148,7 @@ namespace SkyForge.Controllers.Retailer
                         date = DateTime.UtcNow,
                         user = user?.Name ?? "Unknown User",
                         remarks = request.Remarks,
-                        amount = newSettledAmount
+                        amount = isPending ? 0m : newSettledAmount
                     }
                 });
             }
@@ -585,7 +1158,6 @@ namespace SkyForge.Controllers.Retailer
                 return StatusCode(500, new { success = false, error = "Internal server error." });
             }
         }
-
         // Public endpoint - No authentication required!
         // [HttpGet("public-statement/{token}")]
         // [AllowAnonymous] // This allows access without login

@@ -683,6 +683,558 @@ namespace SkyForge.Services.Retailer.StatementServices
                 .ToListAsync();
         }
 
+        // private (List<StatementEntryDTO> statement, decimal totalDebit, decimal totalCredit) PrepareStatementWithOpeningBalanceAndTotals(
+        //     decimal openingBalance,
+        //     List<Transaction> transactions,
+        //     DateTime? fromDate,
+        //     string? paymentMode,
+        //     string? dateFormat,
+        //     Guid? accountId,
+        //     Guid companyId)
+        // {
+        //     decimal balance = openingBalance;
+        //     decimal totalDebit = 0;
+        //     decimal totalCredit = 0;
+
+        //     var statement = new List<StatementEntryDTO>();
+
+        //     // Check if the account is Sundry Debtor or Sundry Creditor
+        //     bool isSundryAccount = false;
+        //     if (accountId.HasValue)
+        //     {
+        //         var account = _context.Accounts
+        //             .Include(a => a.AccountGroup)
+        //             .FirstOrDefault(a => a.Id == accountId.Value && a.CompanyId == companyId);
+
+        //         if (account != null)
+        //         {
+        //             var accountGroupName = account.AccountGroup?.Name ?? string.Empty;
+        //             isSundryAccount = accountGroupName == "Sundry Debtors" || accountGroupName == "Sundry Creditors";
+        //         }
+        //     }
+
+        //     // Add opening balance entry if not cash mode
+        //     if (paymentMode != "cash")
+        //     {
+        //         statement.Add(new StatementEntryDTO
+        //         {
+        //             Date = fromDate,
+        //             Type = string.Empty,
+        //             BillNumber = string.Empty,
+        //             PaymentMode = string.Empty,
+        //             AccountType = "Opening",
+        //             Debit = 0,
+        //             Credit = 0,
+        //             Balance = openingBalance,
+        //             NepaliDate = null,
+        //             IsCashTransaction = false,
+        //             PaymentDirection = null,
+        //             IsCashEntry = false,
+        //             IsSundryAccount = isSundryAccount,
+        //             CashSettlementStatus = null,
+        //             CashSettlementDate = null,
+        //             CashSettlementUserName = null,
+        //             CashSettlementRemarks = null,
+        //             CashSettlementAmount = null,
+        //         });
+        //     }
+
+        //     var transactionsByBill = new Dictionary<string, Transaction>();
+
+        //     // billId → unique counterparty account names for that journal voucher
+        //     var journalAccountNamesByBill = new Dictionary<string, List<string>>();
+
+        //     foreach (var tx in transactions)
+        //     {
+        //         string billId = tx.PaymentAccountId?.ToString() ??
+        //                        tx.ReceiptAccountId?.ToString() ??
+        //                        tx.JournalBillId?.ToString() ??
+        //                        tx.DebitNoteId?.ToString() ??
+        //                        tx.PurchaseBillId?.ToString() ??
+        //                        tx.PurchaseReturnBillId?.ToString() ??
+        //                        tx.SalesBillId?.ToString() ??
+        //                        tx.SalesReturnBillId?.ToString() ??
+        //                        tx.CreditNoteId?.ToString() ??
+        //                        tx.Id.ToString();
+
+        //         // ─────────────────────────────────────────────────────────
+        //         // JOURNALS: keep ONE row per voucher, net the amounts,
+        //         // accumulate the distinct counterparty account names.
+        //         // ─────────────────────────────────────────────────────────
+        //         if (tx.Type == TransactionType.Jrnl)
+        //         {
+        //             // 1. Collect counterparty names (skip the statement's party account)
+        //             if (!journalAccountNamesByBill.TryGetValue(billId, out var names))
+        //             {
+        //                 names = new List<string>();
+        //                 journalAccountNamesByBill[billId] = names;
+        //             }
+
+        //             void TryAddName(string? name, Guid? id)
+        //             {
+        //                 if (string.IsNullOrEmpty(name)) return;
+        //                 if (id.HasValue && id.Value == accountId) return;    // skip party
+        //                 if (!names.Contains(name)) names.Add(name);
+        //             }
+
+        //             TryAddName(tx.DebitAccount?.Name, tx.DebitAccount?.Id);
+        //             TryAddName(tx.CreditAccount?.Name, tx.CreditAccount?.Id);
+        //             TryAddName(tx.PaymentAccount?.Name, tx.PaymentAccount?.Id);
+        //             TryAddName(tx.ReceiptAccount?.Name, tx.ReceiptAccount?.Id);
+
+        //             // 2. Merge / net the amounts into a single row keyed by billId
+        //             if (!transactionsByBill.TryGetValue(billId, out var existing))
+        //             {
+        //                 // first leg — clone so we don't mutate the tracked entity
+        //                 transactionsByBill[billId] = new Transaction
+        //                 {
+        //                     Id = tx.Id,
+        //                     CompanyId = tx.CompanyId,
+        //                     Date = tx.Date,
+        //                     NepaliDate = tx.NepaliDate,
+        //                     Type = tx.Type,
+        //                     BillNumber = tx.BillNumber,
+        //                     PartyBillNumber = tx.PartyBillNumber,
+        //                     PaymentMode = tx.PaymentMode,
+        //                     TotalDebit = tx.TotalDebit,
+        //                     TotalCredit = tx.TotalCredit,
+        //                     PaymentAccountId = tx.PaymentAccountId,
+        //                     ReceiptAccountId = tx.ReceiptAccountId,
+        //                     JournalBillId = tx.JournalBillId,
+        //                     DebitNoteId = tx.DebitNoteId,
+        //                     SalesBillId = tx.SalesBillId,
+        //                     SalesReturnBillId = tx.SalesReturnBillId,
+        //                     PurchaseBillId = tx.PurchaseBillId,
+        //                     PurchaseReturnBillId = tx.PurchaseReturnBillId,
+        //                     AccountId = tx.AccountId,
+        //                     DebitAccountId = tx.DebitAccountId,
+        //                     CreditAccountId = tx.CreditAccountId,
+        //                     Account = tx.Account,
+        //                     PaymentAccount = tx.PaymentAccount,
+        //                     ReceiptAccount = tx.ReceiptAccount,
+        //                     JournalAccountType = tx.JournalAccountType,
+        //                     DebitAccount = tx.DebitAccount,
+        //                     CreditAccount = tx.CreditAccount,
+        //                     CashSettlementStatus = tx.CashSettlementStatus,
+        //                     CashSettlementDate = tx.CashSettlementDate,
+        //                     CashSettlementUserId = tx.CashSettlementUserId,
+        //                     CashSettlementUser = tx.CashSettlementUser,
+        //                     CashSettlementRemarks = tx.CashSettlementRemarks,
+        //                     CashSettlementAmount = tx.CashSettlementAmount,
+        //                 };
+        //             }
+        //             else
+        //             {
+        //                 // net this leg: +Dr / −Cr, then re-encode on a single side
+        //                 decimal rowNet = tx.TotalDebit - tx.TotalCredit;
+        //                 decimal combinedNet = (existing.TotalDebit - existing.TotalCredit) + rowNet;
+
+        //                 existing.TotalDebit = combinedNet > 0 ? combinedNet : 0;
+        //                 existing.TotalCredit = combinedNet < 0 ? -combinedNet : 0;
+
+        //                 if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
+        //                 {
+        //                     existing.CashSettlementStatus = tx.CashSettlementStatus;
+        //                     existing.CashSettlementDate = tx.CashSettlementDate;
+        //                     existing.CashSettlementUserId = tx.CashSettlementUserId;
+        //                     existing.CashSettlementUser = tx.CashSettlementUser;
+        //                     existing.CashSettlementRemarks = tx.CashSettlementRemarks;
+        //                     existing.CashSettlementAmount = tx.CashSettlementAmount;
+        //                 }
+        //             }
+
+        //             continue;
+        //         }
+
+        //         // ─────────────────────────────────────────────────────────
+        //         // NON-JOURNAL — original dedupe behaviour
+        //         // ─────────────────────────────────────────────────────────
+        //         if (!transactionsByBill.ContainsKey(billId))
+        //         {
+        //             transactionsByBill[billId] = tx;
+        //         }
+        //         else
+        //         {
+        //             var existing = transactionsByBill[billId];
+        //             existing.TotalDebit = existing.TotalDebit + tx.TotalDebit;
+        //             existing.TotalCredit = existing.TotalCredit + tx.TotalCredit;
+
+        //             if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
+        //             {
+        //                 existing.CashSettlementStatus = tx.CashSettlementStatus;
+        //                 existing.CashSettlementDate = tx.CashSettlementDate;
+        //                 existing.CashSettlementUserId = tx.CashSettlementUserId;
+        //                 existing.CashSettlementUser = tx.CashSettlementUser;
+        //                 existing.CashSettlementRemarks = tx.CashSettlementRemarks;
+        //                 existing.CashSettlementAmount = tx.CashSettlementAmount;
+        //             }
+        //         }
+        //     }
+        //     // Process grouped transactions
+        //     foreach (var tx in transactionsByBill.Values)
+        //     {
+        //         _logger.LogInformation($"Processing transaction {tx.Id}: Remarks='{tx.CashSettlementRemarks}', Status='{tx.CashSettlementStatus}'");
+
+        //         // Log the cash settlement status for debugging
+        //         if (!string.IsNullOrEmpty(tx.CashSettlementStatus))
+        //         {
+        //             _logger.LogInformation($"Processing transaction {tx.Id} - Type: {tx.Type}, CashSettlementStatus: {tx.CashSettlementStatus}, User: {tx.CashSettlementUser?.Name}");
+        //         }
+
+        //         string accountGroupName = string.Empty;
+
+        //         // For Sale/Sales Return - get from the Account (Sundry Debtor)
+        //         if (tx.Type == TransactionType.Sale || tx.Type == TransactionType.SlRt)
+        //         {
+        //             accountGroupName = tx.Account?.AccountGroup?.Name ?? string.Empty;
+        //         }
+        //         // For Purchase/Purchase Return - get from the Account (Sundry Creditor)
+        //         else if (tx.Type == TransactionType.Purc || tx.Type == TransactionType.PrRt)
+        //         {
+        //             accountGroupName = tx.Account?.AccountGroup?.Name ?? string.Empty;
+        //         }
+        //         // For Payment - get from PaymentAccount
+        //         else if (tx.Type == TransactionType.Pymt)
+        //         {
+        //             accountGroupName = tx.PaymentAccount?.AccountGroup?.Name ?? string.Empty;
+        //         }
+        //         // For Receipt - get from ReceiptAccount
+        //         else if (tx.Type == TransactionType.Rcpt)
+        //         {
+        //             accountGroupName = tx.ReceiptAccount?.AccountGroup?.Name ?? string.Empty;
+        //         }
+        //         // Fallback for other types
+        //         else
+        //         {
+        //             accountGroupName = tx.Account?.AccountGroup?.Name ??
+        //                               tx.PaymentAccount?.AccountGroup?.Name ??
+        //                               tx.ReceiptAccount?.AccountGroup?.Name ??
+        //                               string.Empty;
+        //         }
+
+        //         bool isCashTransaction = tx.PaymentMode == PaymentMode.Cash;
+        //         decimal debitAmount = tx.TotalDebit;
+        //         decimal creditAmount = tx.TotalCredit;
+
+        //         // Get cash settlement fields from the transaction
+        //         string cashSettlementStatus = tx.CashSettlementStatus ?? string.Empty;
+        //         DateTime? cashSettlementDate = tx.CashSettlementDate;
+        //         string cashSettlementRemarks = tx.CashSettlementRemarks ?? string.Empty;
+        //         string cashSettlementUserName = tx.CashSettlementUser?.Name ?? string.Empty;
+        //         decimal? cashSettlementAmount = tx.CashSettlementAmount;
+
+        //         // For cash transactions on Sundry Debtors/Creditors, create TWO entries
+        //         if (isCashTransaction && isSundryAccount)
+        //         {
+        //             // ENTRY 1: The original transaction
+        //             string accountType1 = string.Empty;
+        //             string paymentDirection1 = string.Empty;
+        //             decimal firstDebit = 0;
+        //             decimal firstCredit = 0;
+
+        //             if (tx.Type == TransactionType.Sale)
+        //             {
+        //                 accountType1 = "Cash Sale";
+        //                 paymentDirection1 = "Sale";
+        //                 firstDebit = debitAmount;
+        //                 firstCredit = 0;
+        //             }
+        //             else if (tx.Type == TransactionType.Purc)
+        //             {
+        //                 accountType1 = "Cash Purchase";
+        //                 paymentDirection1 = "Purchase";
+        //                 firstDebit = 0;
+        //                 firstCredit = creditAmount;
+        //             }
+        //             else if (tx.Type == TransactionType.SlRt)
+        //             {
+        //                 accountType1 = "Cash Sales Rtn.";
+        //                 paymentDirection1 = "Return";
+        //                 firstDebit = 0;
+        //                 firstCredit = creditAmount;
+        //             }
+        //             else if (tx.Type == TransactionType.PrRt)
+        //             {
+        //                 accountType1 = "Cash Purchase Rtn.";
+        //                 paymentDirection1 = "Return";
+        //                 firstDebit = debitAmount;
+        //                 firstCredit = 0;
+        //             }
+
+        //             balance += firstDebit - firstCredit;
+        //             totalDebit += firstDebit;
+        //             totalCredit += firstCredit;
+
+        //             Guid? billId = tx.PaymentAccountId ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId;
+        //             Guid? salesBillId = tx.SalesBillId;
+        //             Guid? salesReturnBillId = tx.SalesReturnBillId;
+        //             Guid? purchaseBillId = tx.PurchaseBillId;
+        //             Guid? purchaseReturnBillId = tx.PurchaseReturnBillId;
+
+        //             statement.Add(new StatementEntryDTO
+        //             {
+        //                 Date = tx.Date,
+        //                 Type = tx.Type.ToString(),
+        //                 BillNumber = tx.BillNumber,
+        //                 PaymentMode = tx.PaymentMode.ToString(),
+        //                 PartyBillNumber = tx.PartyBillNumber,
+        //                 AccountType = accountType1,
+        //                 AccountGroupName = accountGroupName,
+        //                 Debit = firstDebit,
+        //                 Credit = firstCredit,
+        //                 Balance = balance,
+        //                 BillId = billId,
+        //                 SalesBillId = salesBillId,
+        //                 SalesReturnBillId = salesReturnBillId,
+        //                 PurchaseBillId = purchaseBillId,
+        //                 PurchaseReturnBillId = purchaseReturnBillId,
+        //                 PaymentAccountId = tx.PaymentAccountId,
+        //                 ReceiptAccountId = tx.ReceiptAccountId,
+        //                 JournalBillId = tx.JournalBillId,
+        //                 DebitNoteId = tx.DebitNoteId,
+        //                 NepaliDate = tx.NepaliDate,
+        //                 IsCashTransaction = true,
+        //                 PaymentDirection = paymentDirection1,
+        //                 IsCashEntry = false,
+        //                 IsSundryAccount = isSundryAccount,
+        //                 // Cash settlement fields
+        //                 CashSettlementStatus = cashSettlementStatus,
+        //                 CashSettlementDate = cashSettlementDate,
+        //                 CashSettlementUserName = cashSettlementUserName,
+        //                 CashSettlementRemarks = cashSettlementRemarks,
+        //                 CashSettlementAmount = cashSettlementAmount,
+        //             });
+
+        //             // ENTRY 2: The cash received/paid entry
+        //             string accountType2 = string.Empty;
+        //             string paymentDirection2 = string.Empty;
+        //             decimal secondDebit = 0;
+        //             decimal secondCredit = 0;
+        //             decimal actualCashAmount = tx.CashSettlementAmount ?? debitAmount;
+
+        //             if (tx.Type == TransactionType.Sale)
+        //             {
+        //                 accountType2 = "Cash Received";
+        //                 paymentDirection2 = "Received";
+        //                 secondCredit = actualCashAmount;
+        //             }
+        //             else if (tx.Type == TransactionType.Purc)
+        //             {
+        //                 accountType2 = "Cash Paid";
+        //                 paymentDirection2 = "Paid";
+        //                 secondDebit = creditAmount;
+        //             }
+        //             else if (tx.Type == TransactionType.SlRt)
+        //             {
+        //                 accountType2 = "Cash Refund";
+        //                 paymentDirection2 = "Paid";
+        //                 secondDebit = creditAmount;
+        //             }
+        //             else if (tx.Type == TransactionType.PrRt)
+        //             {
+        //                 accountType2 = "Cash Return";
+        //                 paymentDirection2 = "Received";
+        //                 secondCredit = debitAmount;
+        //             }
+
+        //             balance += secondDebit - secondCredit;
+        //             totalDebit += secondDebit;
+        //             totalCredit += secondCredit;
+
+        //             statement.Add(new StatementEntryDTO
+        //             {
+        //                 Date = tx.Date,
+        //                 Type = "Cash",
+        //                 BillNumber = tx.BillNumber,
+        //                 PaymentMode = tx.PaymentMode.ToString(),
+        //                 PartyBillNumber = tx.PartyBillNumber,
+        //                 AccountType = accountType2,
+        //                 AccountGroupName = accountGroupName,
+        //                 Debit = secondDebit,
+        //                 Credit = secondCredit,
+        //                 Balance = balance,
+        //                 BillId = billId,
+        //                 SalesBillId = salesBillId,
+        //                 SalesReturnBillId = salesReturnBillId,
+        //                 PurchaseBillId = purchaseBillId,
+        //                 PurchaseReturnBillId = purchaseReturnBillId,
+        //                 PaymentAccountId = tx.PaymentAccountId,
+        //                 ReceiptAccountId = tx.ReceiptAccountId,
+        //                 JournalBillId = tx.JournalBillId,
+        //                 DebitNoteId = tx.DebitNoteId,
+        //                 NepaliDate = tx.NepaliDate,
+        //                 IsCashTransaction = true,
+        //                 PaymentDirection = paymentDirection2,
+        //                 IsCashEntry = true,
+        //                 IsSundryAccount = isSundryAccount,
+        //                 CashSettlementStatus = cashSettlementStatus,
+        //                 CashSettlementDate = cashSettlementDate,
+        //                 CashSettlementUserName = cashSettlementUserName,
+        //                 CashSettlementRemarks = cashSettlementRemarks,
+        //                 CashSettlementAmount = cashSettlementAmount,
+        //             });
+        //         }
+        //         else
+        //         {
+        //             // Non-cash transactions OR cash transactions for non-sundry accounts
+        //             string accountType = string.Empty;
+        //             string instType = string.Empty;
+        //             string instNo = string.Empty;
+        //             string paymentDirection = string.Empty;
+
+        //             if (tx.PaymentMode == PaymentMode.Cash)
+        //             {
+        //                 if (tx.Type == TransactionType.Sale)
+        //                 {
+        //                     accountType = "Cash Sale";
+        //                 }
+        //                 else if (tx.Type == TransactionType.Purc)
+        //                 {
+        //                     accountType = "Cash Purchase";
+        //                 }
+        //                 else if (tx.Type == TransactionType.SlRt)
+        //                 {
+        //                     accountType = "Cash Sales Return";
+        //                 }
+        //                 else if (tx.Type == TransactionType.PrRt)
+        //                 {
+        //                     accountType = "Cash Purchase Return";
+        //                 }
+        //             }
+        //             else if (tx.Type == TransactionType.Purc)
+        //             {
+        //                 if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+        //                 {
+        //                     accountType = $"Purchase {tx.PartyBillNumber}";
+        //                 }
+        //                 else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
+        //                 {
+        //                     accountType = tx.PurchaseSalesType;
+        //                 }
+        //             }
+        //             else if (tx.Type == TransactionType.PrRt)
+        //             {
+        //                 if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+        //                 {
+        //                     accountType = $"Purchase Return {tx.PartyBillNumber}";
+        //                 }
+        //                 else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
+        //                 {
+        //                     accountType = tx.PurchaseSalesReturnType;
+        //                 }
+        //             }
+        //             else if (tx.Type == TransactionType.Sale)
+        //             {
+        //                 if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+        //                 {
+        //                     accountType = $"Sale {tx.PartyBillNumber}";
+        //                 }
+        //                 else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
+        //                 {
+        //                     accountType = tx.PurchaseSalesType;
+        //                 }
+        //                 else
+        //                 {
+        //                     accountType = "Credit Sale";
+        //                 }
+        //             }
+        //             else if (tx.Type == TransactionType.SlRt)
+        //             {
+        //                 if (!string.IsNullOrEmpty(tx.PartyBillNumber))
+        //                 {
+        //                     accountType = $"Sales Return {tx.PartyBillNumber}";
+        //                 }
+        //                 else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
+        //                 {
+        //                     accountType = tx.PurchaseSalesReturnType;
+        //                 }
+        //                 else
+        //                 {
+        //                     accountType = "Sales Return";
+        //                 }
+        //             }
+        //             else if (tx.Type == TransactionType.Pymt)
+        //             {
+        //                 accountType = $"{tx.PaymentReceiptType}";
+        //                 instType = $"{tx.InstType}";
+        //                 instNo = $"{tx.InstNo}";
+        //                 paymentDirection = "Paid";
+        //             }
+        //             else if (tx.Type == TransactionType.Rcpt)
+        //             {
+        //                 accountType = $"{tx.PaymentReceiptType}";
+        //                 instType = $"{tx.InstType}";
+        //                 instNo = $"{tx.InstNo}";
+        //                 paymentDirection = "Received";
+        //             }
+        //             else if (!string.IsNullOrEmpty(tx.PurchaseSalesType))
+        //                 accountType = tx.PurchaseSalesType;
+        //             else if (!string.IsNullOrEmpty(tx.PurchaseSalesReturnType))
+        //                 accountType = tx.PurchaseSalesReturnType;
+        //             else if (!string.IsNullOrEmpty(tx.PaymentReceiptType))
+        //                 accountType = tx.PaymentReceiptType;
+        //             else if (!string.IsNullOrEmpty(tx.JournalAccountType))
+        //                 accountType = tx.JournalAccountType;
+        //             else if (!string.IsNullOrEmpty(tx.DrCrNoteAccountType))
+        //                 accountType = tx.DrCrNoteAccountType;
+        //             else if (tx.PaymentAccount != null)
+        //                 accountType = tx.PaymentAccount.Name;
+        //             else if (tx.ReceiptAccount != null)
+        //                 accountType = tx.ReceiptAccount.Name;
+        //             else if (tx.DebitAccount != null)
+        //                 accountType = tx.DebitAccount.Name;
+        //             else if (tx.CreditAccount != null)
+        //                 accountType = tx.CreditAccount.Name;
+
+        //             balance += debitAmount - creditAmount;
+        //             totalDebit += debitAmount;
+        //             totalCredit += creditAmount;
+
+        //             Guid? billId = tx.PaymentAccountId ?? tx.ReceiptAccountId2 ?? tx.JournalBillId ?? tx.DebitNoteId;
+        //             Guid? salesBillId = tx.SalesBillId;
+        //             Guid? salesReturnBillId = tx.SalesReturnBillId;
+        //             Guid? purchaseBillId = tx.PurchaseBillId;
+        //             Guid? purchaseReturnBillId = tx.PurchaseReturnBillId;
+
+        //             statement.Add(new StatementEntryDTO
+        //             {
+        //                 Date = tx.Date,
+        //                 Type = tx.Type.ToString(),
+        //                 BillNumber = tx.BillNumber,
+        //                 PaymentMode = tx.PaymentMode.ToString(),
+        //                 PartyBillNumber = tx.PartyBillNumber,
+        //                 AccountType = accountType,
+        //                 AccountGroupName = accountGroupName,
+        //                 InstType = instType,
+        //                 InstNo = instNo,
+        //                 Debit = debitAmount,
+        //                 Credit = creditAmount,
+        //                 Balance = balance,
+        //                 BillId = billId,
+        //                 SalesBillId = salesBillId,
+        //                 SalesReturnBillId = salesReturnBillId,
+        //                 PurchaseBillId = purchaseBillId,
+        //                 PurchaseReturnBillId = purchaseReturnBillId,
+        //                 PaymentAccountId = tx.PaymentAccountId,
+        //                 ReceiptAccountId = tx.ReceiptAccountId,
+        //                 JournalBillId = tx.JournalBillId,
+        //                 DebitNoteId = tx.DebitNoteId,
+        //                 NepaliDate = tx.NepaliDate,
+        //                 IsCashTransaction = tx.PaymentMode == PaymentMode.Cash,
+        //                 PaymentDirection = paymentDirection,
+        //                 IsCashEntry = false,
+        //                 IsSundryAccount = isSundryAccount,
+        //                 CashSettlementStatus = cashSettlementStatus,
+        //                 CashSettlementDate = cashSettlementDate,
+        //                 CashSettlementUserName = cashSettlementUserName,
+        //                 CashSettlementRemarks = cashSettlementRemarks
+        //             });
+        //         }
+        //     }
+
+        //     return (statement, totalDebit, totalCredit);
+        // }
+
         private (List<StatementEntryDTO> statement, decimal totalDebit, decimal totalCredit) PrepareStatementWithOpeningBalanceAndTotals(
             decimal openingBalance,
             List<Transaction> transactions,
@@ -870,6 +1422,7 @@ namespace SkyForge.Services.Retailer.StatementServices
                     }
                 }
             }
+
             // Process grouped transactions
             foreach (var tx in transactionsByBill.Values)
             {
@@ -1005,74 +1558,87 @@ namespace SkyForge.Services.Retailer.StatementServices
                         CashSettlementAmount = cashSettlementAmount,
                     });
 
+                    // ─────────────────────────────────────────────────────────
                     // ENTRY 2: The cash received/paid entry
-                    string accountType2 = string.Empty;
-                    string paymentDirection2 = string.Empty;
-                    decimal secondDebit = 0;
-                    decimal secondCredit = 0;
-                    decimal actualCashAmount = tx.CashSettlementAmount ?? debitAmount;
-                    
-                    if (tx.Type == TransactionType.Sale)
-                    {
-                        accountType2 = "Cash Received";
-                        paymentDirection2 = "Received";
-                        secondCredit = actualCashAmount;
-                    }
-                    else if (tx.Type == TransactionType.Purc)
-                    {
-                        accountType2 = "Cash Paid";
-                        paymentDirection2 = "Paid";
-                        secondDebit = creditAmount;
-                    }
-                    else if (tx.Type == TransactionType.SlRt)
-                    {
-                        accountType2 = "Cash Refund";
-                        paymentDirection2 = "Paid";
-                        secondDebit = creditAmount;
-                    }
-                    else if (tx.Type == TransactionType.PrRt)
-                    {
-                        accountType2 = "Cash Return";
-                        paymentDirection2 = "Received";
-                        secondCredit = debitAmount;
-                    }
+                    // SKIP if settlement is Pending OR if no actual cash has moved.
+                    // ─────────────────────────────────────────────────────────
+                    bool isPendingSettlement = string.Equals(
+                        cashSettlementStatus, "Pending", StringComparison.OrdinalIgnoreCase);
 
-                    balance += secondDebit - secondCredit;
-                    totalDebit += secondDebit;
-                    totalCredit += secondCredit;
+                    decimal actualCashAmount = tx.CashSettlementAmount ?? 0m;
 
-                    statement.Add(new StatementEntryDTO
+                    // Render cash entry only if it's not pending and actual cash > 0
+                    bool shouldRenderCashEntry = !isPendingSettlement && actualCashAmount > 0m;
+
+                    if (shouldRenderCashEntry)
                     {
-                        Date = tx.Date,
-                        Type = "Cash",
-                        BillNumber = tx.BillNumber,
-                        PaymentMode = tx.PaymentMode.ToString(),
-                        PartyBillNumber = tx.PartyBillNumber,
-                        AccountType = accountType2,
-                        AccountGroupName = accountGroupName,
-                        Debit = secondDebit,
-                        Credit = secondCredit,
-                        Balance = balance,
-                        BillId = billId,
-                        SalesBillId = salesBillId,
-                        SalesReturnBillId = salesReturnBillId,
-                        PurchaseBillId = purchaseBillId,
-                        PurchaseReturnBillId = purchaseReturnBillId,
-                        PaymentAccountId = tx.PaymentAccountId,
-                        ReceiptAccountId = tx.ReceiptAccountId,
-                        JournalBillId = tx.JournalBillId,
-                        DebitNoteId = tx.DebitNoteId,
-                        NepaliDate = tx.NepaliDate,
-                        IsCashTransaction = true,
-                        PaymentDirection = paymentDirection2,
-                        IsCashEntry = true,
-                        IsSundryAccount = isSundryAccount,
-                        CashSettlementStatus = cashSettlementStatus,
-                        CashSettlementDate = cashSettlementDate,
-                        CashSettlementUserName = cashSettlementUserName,
-                        CashSettlementRemarks = cashSettlementRemarks,
-                        CashSettlementAmount = cashSettlementAmount,
-                    });
+                        string accountType2 = string.Empty;
+                        string paymentDirection2 = string.Empty;
+                        decimal secondDebit = 0;
+                        decimal secondCredit = 0;
+
+                        if (tx.Type == TransactionType.Sale)
+                        {
+                            accountType2 = "Cash Received";
+                            paymentDirection2 = "Received";
+                            secondCredit = actualCashAmount;
+                        }
+                        else if (tx.Type == TransactionType.Purc)
+                        {
+                            accountType2 = "Cash Paid";
+                            paymentDirection2 = "Paid";
+                            secondDebit = actualCashAmount;
+                        }
+                        else if (tx.Type == TransactionType.SlRt)
+                        {
+                            accountType2 = "Cash Refund";
+                            paymentDirection2 = "Paid";
+                            secondDebit = actualCashAmount;
+                        }
+                        else if (tx.Type == TransactionType.PrRt)
+                        {
+                            accountType2 = "Cash Return";
+                            paymentDirection2 = "Received";
+                            secondCredit = actualCashAmount;
+                        }
+
+                        balance += secondDebit - secondCredit;
+                        totalDebit += secondDebit;
+                        totalCredit += secondCredit;
+
+                        statement.Add(new StatementEntryDTO
+                        {
+                            Date = tx.Date,
+                            Type = "Cash",
+                            BillNumber = tx.BillNumber,
+                            PaymentMode = tx.PaymentMode.ToString(),
+                            PartyBillNumber = tx.PartyBillNumber,
+                            AccountType = accountType2,
+                            AccountGroupName = accountGroupName,
+                            Debit = secondDebit,
+                            Credit = secondCredit,
+                            Balance = balance,
+                            BillId = billId,
+                            SalesBillId = salesBillId,
+                            SalesReturnBillId = salesReturnBillId,
+                            PurchaseBillId = purchaseBillId,
+                            PurchaseReturnBillId = purchaseReturnBillId,
+                            PaymentAccountId = tx.PaymentAccountId,
+                            ReceiptAccountId = tx.ReceiptAccountId,
+                            JournalBillId = tx.JournalBillId,
+                            DebitNoteId = tx.DebitNoteId,
+                            NepaliDate = tx.NepaliDate,
+                            IsCashTransaction = true,
+                            PaymentDirection = paymentDirection2,
+                            IsCashEntry = true,
+                            IsSundryAccount = isSundryAccount,
+                            CashSettlementStatus = cashSettlementStatus,
+                            CashSettlementDate = cashSettlementDate,
+                            CashSettlementUserName = cashSettlementUserName,
+                            CashSettlementRemarks = cashSettlementRemarks,
+                            CashSettlementAmount = cashSettlementAmount,
+                        });
+                    }
                 }
                 else
                 {
@@ -1234,7 +1800,6 @@ namespace SkyForge.Services.Retailer.StatementServices
 
             return (statement, totalDebit, totalCredit);
         }
-
 
         private async Task<List<ItemwiseStatementDTO>> PrepareItemwiseStatementAsync(
             Guid companyId,

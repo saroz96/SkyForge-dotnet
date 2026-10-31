@@ -34,6 +34,11 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public decimal? DiscountPercentage { get; set; }
         public decimal? DiscountAmount { get; set; }
         public string PaymentMode { get; set; }
+        public string? CashSettlementType { get; set; }        // "full" | "partial"
+        public decimal? CashReceivedAmount { get; set; }
+        public string? CashSettlementRemarks { get; set; }
+        public decimal? CashTenderedAmount { get; set; }
+        public decimal? CashChangeAmount { get; set; }
         public decimal? RoundOffAmount { get; set; }
         public decimal? SubTotal { get; set; }
         public decimal? TaxableAmount { get; set; }

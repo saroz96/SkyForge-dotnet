@@ -16,7 +16,7 @@ import api, { refreshToken } from '../../services/api';
 import AccountModalForSales from './AccountModalForSales';
 import StockAdjustmentModal from './StockAdjustmentModal';
 import convertToRupeesAndPaisaNepali from '../../common/convertToRupeesAndPaisaNepali'
-
+import CashBillSettlementModal from './CashBillSettlementModal';
 
 // Date conversion utilities using nepali-datetime
 const convertBsToAd = (bsDate) => {
@@ -240,7 +240,14 @@ const AddSalesOpen = () => {
     const [useVoucherLastDateForSales, setUseVoucherLastDateForSales] = useState(false);
     const [lastSalesDate, setLastSalesDate] = useState(null);
     const headerSearchInputRef = useRef(null);
-
+    const [cashSettlement, setCashSettlement] = useState({
+        type: 'full',              // 'full' | 'partial' | 'pending'
+        receivedAmount: 0,
+        remainingAmount: 0,
+        remarks: ''
+    });
+    const [showCashSettlementModal, setShowCashSettlementModal] = useState(false);
+    const [pendingSubmitPrint, setPendingSubmitPrint] = useState(false);
     const itemsTableRef = useRef(null);
     const [notification, setNotification] = useState({
         show: false,
@@ -1447,27 +1454,6 @@ const AddSalesOpen = () => {
         }
     };
 
-    // const selectItemForInsert = async (item) => {
-    //     if (headerSearchQuery.trim() !== '') {
-    //         setHeaderLastSearchQuery(headerSearchQuery);
-    //         setHeaderShouldShowLastSearchResults(true);
-    //     } else if (headerShouldShowLastSearchResults && headerLastSearchQuery) {
-    //         setHeaderShouldShowLastSearchResults(true);
-    //     }
-    //     setHeaderSearchQuery('');
-
-    //     setShowHeaderItemModal(false);
-    //     setSelectedItemForInsert(item);
-
-    //     setSelectedItemBatchNumber('');
-    //     setSelectedItemExpiryDate('');
-    //     setSelectedItemRate(item.latestPrice || 0);
-
-    //     setTimeout(() => {
-    //         showBatchModalForItem(item);
-    //     }, 100);
-    // };
-
     const selectItemForInsert = async (item) => {
         if (headerSearchQuery.trim() !== '') {
             setHeaderLastSearchQuery(headerSearchQuery);
@@ -2033,58 +2019,6 @@ const AddSalesOpen = () => {
         });
     };
 
-    // const fetchLastTransactions = async (itemId, index) => {
-    //     if (!formData.accountId) {
-    //         setNotification({
-    //             show: true,
-    //             message: 'Please select an account first',
-    //             type: 'error'
-    //         });
-    //         return;
-    //     }
-
-    //     setSelectedItemIndex(index);
-    //     setLoadingItems(prev => new Set(prev).add(itemId));
-    //     setIsLoadingTransactions(true);
-
-    //     try {
-    //         const cacheKey = `${itemId}-${formData.accountId}`;
-
-    //         if (transactionCache.has(cacheKey)) {
-    //             const cachedTransactions = transactionCache.get(cacheKey);
-    //             setTransactions(cachedTransactions);
-    //             setShowTransactionModal(true);
-    //             return;
-    //         }
-
-    //         const controller = new AbortController();
-    //         const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    //         const response = await api.get(`/api/retailer/transactions/${itemId}/${formData.accountId}/Sales`, {
-    //             signal: controller.signal
-    //         });
-
-    //         clearTimeout(timeoutId);
-
-    //         if (response.data.success) {
-    //             setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
-    //             setTransactions(response.data.data.transactions);
-    //             setShowTransactionModal(true);
-    //         }
-    //     } catch (error) {
-    //         if (error.name !== 'AbortError') {
-    //             console.error('Error fetching transactions:', error);
-    //         }
-    //     } finally {
-    //         setLoadingItems(prev => {
-    //             const newSet = new Set(prev);
-    //             newSet.delete(itemId);
-    //             return newSet;
-    //         });
-    //         setIsLoadingTransactions(false);
-    //     }
-    // };
-
     const fetchLastTransactions = async (itemId, index) => {
         if (!formData.accountId) {
             setNotification({
@@ -2299,84 +2233,6 @@ const AddSalesOpen = () => {
     };
 
     // Manual reset function - does NOT increment bill number
-    // const handleManualReset = async () => {
-    //     try {
-    //         setIsLoading(true);
-
-    //         // Get current bill number (does NOT increment)
-    //         const currentBillNum = await getCurrentBillNumber();
-
-    //         // Fetch other data
-    //         const response = await api.get('/api/retailer/sales-open');
-    //         const { data } = response.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: currentNepaliDate,
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: currentBillNum,
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         setCategories(data.categories || []);
-    //         setUnits(data.units || []);
-    //         setCompanyGroups(data.companyGroups || []);
-    //         setAccounts(data.accounts || []);
-
-    //         setNextBillNumber(currentBillNum);
-    //         setItems([]);
-    //         clearSalesOpenDraft();
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderSearchResults([]);
-    //         setHeaderSearchPage(1);
-    //         setHasMoreHeaderSearchResults(false);
-    //         setTotalHeaderSearchItems(0);
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting form:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
-
-    // Manual reset function - does NOT increment bill number
     const handleManualReset = async () => {
         try {
             setIsLoading(true);
@@ -2460,6 +2316,15 @@ const AddSalesOpen = () => {
 
             setNextBillNumber(currentBillNum);
             setItems([]);
+            setCashSettlement({
+                type: 'full',
+                receivedAmount: 0,
+                remainingAmount: 0,
+                remarks: ''
+            });
+            setShowCashSettlementModal(false);
+            setPendingSubmitPrint(false);
+
             clearSalesOpenDraft();
 
             setHeaderSearchQuery('');
@@ -2491,83 +2356,6 @@ const AddSalesOpen = () => {
         }
     };
 
-    // Reset after save - increments bill number (but we get it from the backend)
-    // const resetAfterSave = async () => {
-    //     try {
-    //         // Get next bill number (this increments the counter)
-    //         // const response = await api.get('/api/retailer/sales-open/next-number');
-    //         // const nextBillNum = response.data.data.nextCreditSalesOpenBillNumber;
-    //         const currentBillNum = await getCurrentBillNumber();
-
-    //         // Fetch other data
-    //         const companyResponse = await api.get('/api/retailer/sales-open');
-    //         const { data } = companyResponse.data;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: currentNepaliDate,
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: currentBillNum,
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         setCategories(data.categories || []);
-    //         setUnits(data.units || []);
-    //         setCompanyGroups(data.companyGroups || []);
-    //         setAccounts(data.accounts || []);
-
-    //         setNextBillNumber(currentBillNum);
-    //         setItems([]);
-    //         clearSalesOpenDraft();
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderSearchResults([]);
-    //         setHeaderSearchPage(1);
-    //         setHasMoreHeaderSearchResults(false);
-    //         setTotalHeaderSearchItems(0);
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting after save:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     }
-    // };
-
-    // Reset after save - respects date preferences
     const resetAfterSave = async () => {
         try {
             // Get current bill number (does NOT increment - use current, not next)
@@ -2649,6 +2437,16 @@ const AddSalesOpen = () => {
 
             setNextBillNumber(currentBillNum);
             setItems([]);
+
+            setCashSettlement({
+                type: 'full',
+                receivedAmount: 0,
+                remainingAmount: 0,
+                remarks: ''
+            });
+            setShowCashSettlementModal(false);
+            setPendingSubmitPrint(false);
+
             clearSalesOpenDraft();
 
             setHeaderSearchQuery('');
@@ -2678,26 +2476,7 @@ const AddSalesOpen = () => {
         }
     };
 
-    const handleSubmit = async (e, print = false) => {
-        e.preventDefault();
-
-        const isValid = validateAllQuantities();
-        if (!isValid) {
-            setNotification({
-                show: true,
-                message: 'Please fix quantity errors before submitting',
-                type: 'error'
-            });
-
-            const firstErrorIndex = Object.keys(quantityErrors)[0];
-            if (firstErrorIndex !== undefined) {
-                setTimeout(() => {
-                    document.getElementById(`quantity-${firstErrorIndex}`)?.focus();
-                }, 100);
-            }
-
-            return;
-        }
+    const doSaveBill = async (print, settlementOverride = null) => {
         setIsSaving(true);
 
         try {
@@ -2705,10 +2484,7 @@ const AddSalesOpen = () => {
 
             const parseDate = (dateString) => {
                 if (!dateString) return new Date().toISOString();
-
-                // If it's already a valid date string in YYYY-MM-DD format
                 if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-                    // Create date at UTC to avoid timezone issues
                     const date = new Date(dateString);
                     date.setUTCHours(0, 0, 0, 0);
                     return date.toISOString();
@@ -2716,42 +2492,41 @@ const AddSalesOpen = () => {
                 return new Date(dateString).toISOString();
             };
 
+            // ---- Build account / cash settlement block ----
             let accountData = {};
+
             if (formData.paymentMode === 'cash') {
-                if (isManualAccountEntry || !formData.accountId) {
-                    // === FIX: Cash mode with manual entry - use Cash in Hand account ID ===
-                    accountData = {
-                        accountId: cashInHandAccountId, // Use the Cash in Hand account ID
-                        cashAccount: formData.accountName, // Store the entered name for display
-                        cashAccountAddress: formData.accountAddress || null,
-                        cashAccountPan: formData.accountPan || null,
-                        cashAccountEmail: formData.accountEmail || null,
-                        cashAccountPhone: formData.accountPhone || formData.phone || null
-                    };
-                    console.log('Manual cash entry - using Cash in Hand account ID:', cashInHandAccountId);
-                } else {
-                    // Cash mode with existing account - send account ID
-                    accountData = {
-                        accountId: formData.accountId,
-                        cashAccount: formData.accountName,
-                        cashAccountAddress: formData.accountAddress || null,
-                        cashAccountPan: formData.accountPan || null,
-                        cashAccountEmail: formData.accountEmail || null,
-                        cashAccountPhone: formData.accountPhone || formData.phone || null
-                    };
-                }
-            } else {
-                // Credit mode - send account ID
+                const settlement = settlementOverride || cashSettlement || { type: 'full' };
+                const receivedAmount = settlement.type === 'full'
+                    ? calculatedValues.totalAmount
+                    : parseFloat(settlement.receivedAmount) || 0;
+
                 accountData = {
-                    accountId: formData.accountId
+                    // Cash modes: use cash in hand account when manual / no account chosen
+                    accountId: (isManualAccountEntry || !formData.accountId)
+                        ? cashInHandAccountId
+                        : formData.accountId,
+                    cashAccount: formData.accountName,
+                    cashAccountAddress: formData.accountAddress || null,
+                    cashAccountPan: formData.accountPan || null,
+                    cashAccountEmail: formData.accountEmail || null,
+                    cashAccountPhone: formData.accountPhone || formData.phone || null,
+
+                    // ---- settlement fields ----
+                    cashSettlementType: settlement.type,
+                    cashReceivedAmount: receivedAmount,
+                    cashSettlementRemarks: settlement.remarks || null,
+                    cashTenderedAmount: settlement.tenderedAmount ?? receivedAmount,
+                    cashChangeAmount: settlement.changeAmount ?? 0
                 };
+            } else {
+                accountData = { accountId: formData.accountId };
             }
 
             const billData = {
-                // accountId: formData.accountId,
                 ...accountData,
                 paymentMode: formData.paymentMode,
-                isVatExempt: formData.isVatExempt, // "all", "true", or "false"
+                isVatExempt: formData.isVatExempt,
                 discountPercentage: formData.discountPercentage,
                 discountAmount: formData.discountAmount,
                 vatPercentage: formData.vatPercentage,
@@ -2783,12 +2558,11 @@ const AddSalesOpen = () => {
             };
 
             const response = await api.post('/api/retailer/sales-open', billData);
-
             setTransactionCache(new Map());
 
             setNotification({
                 show: true,
-                message: 'Sales bill saved successfully!',
+                message: 'Open sales bill saved successfully!',
                 type: 'success'
             });
 
@@ -2802,46 +2576,226 @@ const AddSalesOpen = () => {
                 setIsSaving(false);
             }
         } catch (error) {
-            console.error('Error saving sales bill:', error);
-
-            // Handle specific error messages
-            if (error.response?.data?.error) {
-                const errorMsg = error.response.data.error;
-
-                if (errorMsg.includes('Cannot save VAT exempt bill with vatable items')) {
-                    setNotification({
-                        show: true,
-                        message: 'Cannot save VAT exempt bill with vatable items',
-                        type: 'error'
-                    });
-                } else if (errorMsg.includes('Cannot save bill with non-vatable items when VAT is applied')) {
-                    setNotification({
-                        show: true,
-                        message: 'Cannot save bill with non-vatable items when VAT is applied',
-                        type: 'error'
-                    });
-                } else if (errorMsg.includes('Not enough stock')) {
-                    setNotification({
-                        show: true,
-                        message: errorMsg,
-                        type: 'error'
-                    });
-                } else {
-                    setNotification({
-                        show: true,
-                        message: errorMsg,
-                        type: 'error'
-                    });
-                }
-            } else {
-                setNotification({
-                    show: true,
-                    message: 'Failed to save sales bill. Please try again.',
-                    type: 'error'
-                });
-            }
+            console.error('Error saving open sales bill:', error);
+            setNotification({
+                show: true,
+                message: error.response?.data?.error || 'Failed to save open sales bill. Please try again.',
+                type: 'error'
+            });
             setIsSaving(false);
         }
+    };
+
+    // const handleSubmit = async (e, print = false) => {
+    //     e.preventDefault();
+
+    //     const isValid = validateAllQuantities();
+    //     if (!isValid) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Please fix quantity errors before submitting',
+    //             type: 'error'
+    //         });
+
+    //         const firstErrorIndex = Object.keys(quantityErrors)[0];
+    //         if (firstErrorIndex !== undefined) {
+    //             setTimeout(() => {
+    //                 document.getElementById(`quantity-${firstErrorIndex}`)?.focus();
+    //             }, 100);
+    //         }
+
+    //         return;
+    //     }
+    //     setIsSaving(true);
+
+    //     try {
+    //         const calculatedValues = calculateTotal();
+
+    //         const parseDate = (dateString) => {
+    //             if (!dateString) return new Date().toISOString();
+
+    //             // If it's already a valid date string in YYYY-MM-DD format
+    //             if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    //                 // Create date at UTC to avoid timezone issues
+    //                 const date = new Date(dateString);
+    //                 date.setUTCHours(0, 0, 0, 0);
+    //                 return date.toISOString();
+    //             }
+    //             return new Date(dateString).toISOString();
+    //         };
+
+    //         let accountData = {};
+    //         if (formData.paymentMode === 'cash') {
+    //             if (isManualAccountEntry || !formData.accountId) {
+    //                 // === FIX: Cash mode with manual entry - use Cash in Hand account ID ===
+    //                 accountData = {
+    //                     accountId: cashInHandAccountId, // Use the Cash in Hand account ID
+    //                     cashAccount: formData.accountName, // Store the entered name for display
+    //                     cashAccountAddress: formData.accountAddress || null,
+    //                     cashAccountPan: formData.accountPan || null,
+    //                     cashAccountEmail: formData.accountEmail || null,
+    //                     cashAccountPhone: formData.accountPhone || formData.phone || null
+    //                 };
+    //                 console.log('Manual cash entry - using Cash in Hand account ID:', cashInHandAccountId);
+    //             } else {
+    //                 // Cash mode with existing account - send account ID
+    //                 accountData = {
+    //                     accountId: formData.accountId,
+    //                     cashAccount: formData.accountName,
+    //                     cashAccountAddress: formData.accountAddress || null,
+    //                     cashAccountPan: formData.accountPan || null,
+    //                     cashAccountEmail: formData.accountEmail || null,
+    //                     cashAccountPhone: formData.accountPhone || formData.phone || null
+    //                 };
+    //             }
+    //         } else {
+    //             // Credit mode - send account ID
+    //             accountData = {
+    //                 accountId: formData.accountId
+    //             };
+    //         }
+
+    //         const billData = {
+    //             // accountId: formData.accountId,
+    //             ...accountData,
+    //             paymentMode: formData.paymentMode,
+    //             isVatExempt: formData.isVatExempt, // "all", "true", or "false"
+    //             discountPercentage: formData.discountPercentage,
+    //             discountAmount: formData.discountAmount,
+    //             vatPercentage: formData.vatPercentage,
+    //             vatAmount: calculatedValues.vatAmount,
+    //             roundOffAmount: formData.roundOffAmount,
+    //             subTotal: calculatedValues.subTotal,
+    //             taxableAmount: calculatedValues.taxableAmount,
+    //             nonTaxableAmount: calculatedValues.nonTaxableAmount,
+    //             totalAmount: calculatedValues.totalAmount,
+    //             nepaliDate: formData.nepaliDate,
+    //             date: parseDate(formData.billDate),
+    //             transactionDateNepali: formData.transactionDateNepali,
+    //             transactionDate: parseDate(formData.transactionDateRoman),
+    //             items: items.map(item => ({
+    //                 itemId: item.itemId,
+    //                 batchNumber: item.batchNumber,
+    //                 expiryDate: item.expiryDate,
+    //                 quantity: item.quantity,
+    //                 unitId: item.unitId,
+    //                 price: item.price,
+    //                 puPrice: item.puPrice,
+    //                 mrp: item.mrp,
+    //                 netPuPrice: item.netPuPrice,
+    //                 vatStatus: item.vatStatus,
+    //                 uniqueUuid: item.uniqueUuid,
+    //                 purchaseBillId: item.purchaseBillId
+    //             })),
+    //             print
+    //         };
+
+    //         const response = await api.post('/api/retailer/sales-open', billData);
+
+    //         setTransactionCache(new Map());
+
+    //         setNotification({
+    //             show: true,
+    //             message: 'Sales bill saved successfully!',
+    //             type: 'success'
+    //         });
+
+    //         if ((print || printAfterSave) && response.data.bill?._id) {
+    //             setItems([]);
+    //             setIsSaving(false);
+    //             await printImmediately(response.data.bill._id);
+    //             await resetAfterSave();
+    //         } else {
+    //             await resetAfterSave();
+    //             setIsSaving(false);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error saving sales bill:', error);
+
+    //         // Handle specific error messages
+    //         if (error.response?.data?.error) {
+    //             const errorMsg = error.response.data.error;
+
+    //             if (errorMsg.includes('Cannot save VAT exempt bill with vatable items')) {
+    //                 setNotification({
+    //                     show: true,
+    //                     message: 'Cannot save VAT exempt bill with vatable items',
+    //                     type: 'error'
+    //                 });
+    //             } else if (errorMsg.includes('Cannot save bill with non-vatable items when VAT is applied')) {
+    //                 setNotification({
+    //                     show: true,
+    //                     message: 'Cannot save bill with non-vatable items when VAT is applied',
+    //                     type: 'error'
+    //                 });
+    //             } else if (errorMsg.includes('Not enough stock')) {
+    //                 setNotification({
+    //                     show: true,
+    //                     message: errorMsg,
+    //                     type: 'error'
+    //                 });
+    //             } else {
+    //                 setNotification({
+    //                     show: true,
+    //                     message: errorMsg,
+    //                     type: 'error'
+    //                 });
+    //             }
+    //         } else {
+    //             setNotification({
+    //                 show: true,
+    //                 message: 'Failed to save sales bill. Please try again.',
+    //                 type: 'error'
+    //             });
+    //         }
+    //         setIsSaving(false);
+    //     }
+    // };
+
+    // Entry point from the Save button / form onSubmit
+    const handleSubmit = async (e, print = false) => {
+        e.preventDefault();
+
+        const isValid = validateAllQuantities();
+        if (!isValid) {
+            setNotification({
+                show: true,
+                message: 'Please fix quantity errors before submitting',
+                type: 'error'
+            });
+            const firstErrorIndex = Object.keys(quantityErrors)[0];
+            if (firstErrorIndex !== undefined) {
+                setTimeout(() => {
+                    document.getElementById(`quantity-${firstErrorIndex}`)?.focus();
+                }, 100);
+            }
+            return;
+        }
+
+        // Cash → open settlement modal first
+        if (formData.paymentMode === 'cash') {
+            setPendingSubmitPrint(print);
+            setShowCashSettlementModal(true);
+            return;
+        }
+
+        // Credit → straight save
+        await doSaveBill(print);
+    };
+
+    // Called when the settlement modal confirms
+    const handleCashSettlementConfirm = async (settlement) => {
+        setCashSettlement(settlement);
+        setShowCashSettlementModal(false);
+        const print = pendingSubmitPrint;
+        setPendingSubmitPrint(false);
+        await doSaveBill(print, settlement);
+    };
+
+    // Called when the settlement modal is cancelled
+    const handleCashSettlementCancel = () => {
+        setShowCashSettlementModal(false);
+        setPendingSubmitPrint(false);
     };
 
     const handlePrintAfterSaveChange = (e) => {
@@ -3119,6 +3073,18 @@ const AddSalesOpen = () => {
             }));
         }
     }, [roundOffSales, manualRoundOffOverride, totals.autoRoundOffAmount]);
+
+    useEffect(() => {
+        const total = totals.totalAmount;
+        const received = cashSettlement.type === 'full'
+            ? total
+            : Math.min(parseFloat(cashSettlement.receivedAmount) || 0, total);
+        setCashSettlement(prev => ({
+            ...prev,
+            receivedAmount: received,
+            remainingAmount: Math.round((total - received) * 100) / 100
+        }));
+    }, [cashSettlement.type, cashSettlement.receivedAmount, totals.totalAmount]);
 
     const handleKeyDown = (e, currentFieldId) => {
         if (e.key === 'Enter') {
@@ -3569,39 +3535,6 @@ const AddSalesOpen = () => {
                                         </div>
                                     </div>
 
-                                    {/* AD Transaction Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="transactionDateRoman"
-                                                id="transactionDateRoman"
-                                                className="form-control form-control-sm"
-                                                value={formData.transactionDateRoman || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Transaction Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
-
                                     <input
                                         type="hidden"
                                         name="transactionDateRoman"
@@ -3746,39 +3679,6 @@ const AddSalesOpen = () => {
                                             )}
                                         </div>
                                     </div>
-
-                                    {/* AD Invoice Date (Auto-converted, Read-only) */}
-                                    {/* <div className="col-12 col-md-6 col-lg-3">
-                                        <div className="position-relative">
-                                            <input
-                                                type="text"
-                                                name="billDate"
-                                                id="billDate"
-                                                className="form-control form-control-sm"
-                                                value={formData.billDate || ''}
-                                                readOnly
-                                                style={{
-                                                    height: '26px',
-                                                    fontSize: '0.875rem',
-                                                    paddingTop: '0.75rem',
-                                                    width: '100%',
-                                                    backgroundColor: '#f8f9fa',
-                                                    cursor: 'not-allowed'
-                                                }}
-                                            />
-                                            <label className="position-absolute" style={{
-                                                top: '-0.5rem',
-                                                left: '0.75rem',
-                                                fontSize: '0.75rem',
-                                                backgroundColor: 'white',
-                                                padding: '0 0.25rem',
-                                                color: '#6c757d',
-                                                fontWeight: '500'
-                                            }}>
-                                                Invoice Date (AD):
-                                            </label>
-                                        </div>
-                                    </div> */}
 
                                     <input
                                         type="hidden"
@@ -5021,30 +4921,6 @@ const AddSalesOpen = () => {
                                         <td style={{ padding: '1px' }}>
                                             <p className="form-control-plaintext mb-0" style={{ fontSize: '0.8rem' }}>Rs. {formatter.format(totals.totalAmount)}</p>
                                         </td>
-                                        {/* <td style={{ padding: '1px' }}>
-                                            <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>In Words:</label>
-                                        </td>
-                                        <td style={{ padding: '1px' }}>
-                                            <div
-                                                className="form-control-plaintext mb-0"
-                                                style={{
-                                                    fontSize: '0.7rem',
-                                                    lineHeight: '1.1',
-                                                    maxHeight: '44px',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    display: '-webkit-box',
-                                                    WebkitLineClamp: 2,
-                                                    WebkitBoxOrientation: 'vertical',
-                                                    wordBreak: 'break-word',
-                                                    whiteSpace: 'normal'
-                                                }}
-                                                id="amountInWords"
-                                                title={convertToRupeesAndPaisaNepali(totals.totalAmount) + " Only."}
-                                            >
-                                                {convertToRupeesAndPaisaNepali(totals.totalAmount)} Only.
-                                            </div>
-                                        </td> */}
 
                                         <td colSpan="2" style={{ padding: '1px' }}>
                                             <div
@@ -5169,268 +5045,6 @@ const AddSalesOpen = () => {
                     </form>
                 </div>
             </div >
-
-            {/* {showAccountModal && (
-                <div
-                    className="modal fade show"
-                    id="accountModal"
-                    tabIndex="-1"
-                    style={{ display: 'block' }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            handleAccountModalClose();
-                            setTimeout(() => {
-                                document.getElementById('address').focus();
-                            }, 0);
-                        }
-                    }}
-                >
-                    <div className="modal-dialog modal-xl modal-dialog-centered">
-                        <div className="modal-content" style={{ height: '400px' }}>
-                            <div className="modal-header py-1">
-                                <h5 className="modal-title" id="accountModalLabel" style={{ fontSize: '0.9rem' }}>
-                                    {formData.paymentMode === 'cash' ? 'Select Cash Account' : 'Select Account'}
-                                </h5>
-                                <small className="ms-auto text-white" style={{ fontSize: '0.7rem' }}>
-                                    {formData.paymentMode === 'cash'
-                                        ? (totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Type to search or enter new account')
-                                        : (totalAccounts > 0 ? `${accounts.length} of ${totalAccounts} accounts shown` : 'Loading accounts...')
-                                    }
-                                </small>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={handleAccountModalClose}
-                                    aria-label="Close"
-                                    style={{ fontSize: '0.6rem', padding: '0.25rem' }}
-                                ></button>
-                            </div>
-                            <div className="p-2 bg-white sticky-top">
-                                {formData.paymentMode === 'cash' ? (
-                                    // Cash mode - allow typing new account
-                                    <input
-                                        type="text"
-                                        id="searchAccount"
-                                        className="form-control form-control-sm"
-                                        placeholder="Type to search or enter new account name..."
-                                        autoFocus
-                                        autoComplete='off'
-                                        value={formData.accountName}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                accountName: value,
-                                                accountId: '',
-                                                accountAddress: '',
-                                                accountPan: '',
-                                                accountEmail: '',
-                                                accountPhone: ''
-                                            }));
-                                            setIsManualAccountEntry(true);
-
-                                            setAccountSearchQuery(value);
-                                            setAccountSearchPage(1);
-
-                                            if (value.trim() !== '' && accountShouldShowLastSearchResults) {
-                                                setAccountShouldShowLastSearchResults(false);
-                                                setAccountLastSearchQuery('');
-                                            }
-
-                                            const timer = setTimeout(() => {
-                                                fetchAccountsFromBackend(value, 1);
-                                            }, 300);
-
-                                            return () => clearTimeout(timer);
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item');
-                                                if (firstAccountItem) {
-                                                    firstAccountItem.focus();
-                                                }
-                                            } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                // Use the entered name as account
-                                                const enteredName = document.getElementById('searchAccount').value.trim();
-                                                if (enteredName) {
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        accountName: enteredName,
-                                                        accountId: '',
-                                                        accountAddress: '',
-                                                        accountPan: '',
-                                                        accountEmail: '',
-                                                        accountPhone: ''
-                                                    }));
-                                                    setIsManualAccountEntry(true);
-                                                    setShowAccountModal(false);
-                                                    setTimeout(() => {
-                                                        document.getElementById('address').focus();
-                                                    }, 100);
-                                                }
-                                            } else if (e.key === 'F6') {
-                                                e.preventDefault();
-                                                setShowAccountCreationModal(true);
-                                                handleAccountModalClose();
-                                            }
-                                        }}
-                                        ref={accountSearchRef}
-                                        style={{
-                                            height: '24px',
-                                            fontSize: '0.75rem',
-                                            padding: '0.25rem 0.5rem'
-                                        }}
-                                    />
-                                ) : (
-                                    // Credit mode - keep existing behavior (search only)
-                                    <input
-                                        type="text"
-                                        id="searchAccount"
-                                        className="form-control form-control-sm"
-                                        placeholder="Search Account... (Press F6 to create new account)"
-                                        autoFocus
-                                        autoComplete='off'
-                                        value={accountSearchQuery}
-                                        onChange={handleAccountSearch}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item');
-                                                if (firstAccountItem) {
-                                                    firstAccountItem.focus();
-                                                }
-                                            } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                const firstAccountItem = document.querySelector('.account-item.active');
-                                                if (firstAccountItem) {
-                                                    const accountId = firstAccountItem.getAttribute('data-account-id');
-                                                    const account = accounts.find(a => a.id === accountId);
-                                                    if (account) {
-                                                        selectAccount(account);
-                                                        document.getElementById('address').focus();
-                                                    }
-                                                }
-                                            } else if (e.key === 'F6') {
-                                                e.preventDefault();
-                                                setShowAccountCreationModal(true);
-                                                handleAccountModalClose();
-                                            }
-                                        }}
-                                        ref={accountSearchRef}
-                                        style={{
-                                            height: '24px',
-                                            fontSize: '0.75rem',
-                                            padding: '0.25rem 0.5rem'
-                                        }}
-                                    />
-                                )}
-                            </div>
-                            <div className="modal-body p-0">
-                                <div style={{ height: 'calc(320px - 40px)' }}>
-                                    {formData.paymentMode === 'cash' && formData.accountName.trim() !== '' && accounts.length === 0 && isManualAccountEntry ? (
-                                        <div className="text-center py-4">
-                                            <i className="bi bi-person-plus text-primary mb-2" style={{ fontSize: '1.5rem' }}></i>
-                                            <p className="text-muted mb-2" style={{ fontSize: '0.8rem' }}>
-                                                No accounts found for "<strong>{formData.accountName}</strong>"
-                                            </p>
-                                            <p className="text-muted mb-3" style={{ fontSize: '0.7rem' }}>
-                                                Press Enter to use as new account, or F6 to create full account
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <VirtualizedAccountList
-                                            accounts={accounts}
-                                            onAccountClick={(account) => {
-                                                setFormData({
-                                                    ...formData,
-                                                    accountId: account.id,
-                                                    accountName: `${account.uniqueNumber || ''} ${account.name}`.trim(),
-                                                    accountAddress: account.address || '',
-                                                    accountPan: account.pan || '',
-                                                    accountEmail: account.email || '',
-                                                    accountPhone: account.phone || ''
-                                                });
-                                                setIsManualAccountEntry(false);
-                                                setShowAccountModal(false);
-                                                setTimeout(() => {
-                                                    document.getElementById('address').focus();
-                                                }, 100);
-                                            }}
-                                            searchRef={accountSearchRef}
-                                            hasMore={hasMoreAccountResults}
-                                            isSearching={isAccountSearching}
-                                            onLoadMore={loadMoreAccounts}
-                                            totalAccounts={totalAccounts}
-                                            page={accountSearchPage}
-                                            searchQuery={accountShouldShowLastSearchResults ? accountLastSearchQuery : accountSearchQuery}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                            {formData.paymentMode === 'cash' && (
-                                <div className="modal-footer py-1" style={{
-                                    borderTop: '1px solid #dee2e6',
-                                    backgroundColor: '#f8f9fa'
-                                }}>
-                                    <div className="d-flex justify-content-between w-100 align-items-center">
-                                        <div>
-                                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                                                {formData.accountName.trim() !== '' && accounts.length === 0 && isManualAccountEntry
-                                                    ? 'Type account name and press Enter to use'
-                                                    : 'Select account or continue typing'}
-                                            </small>
-                                        </div>
-                                        <div className="d-flex gap-2">
-                                            <button
-                                                type="button"
-                                                className="btn btn-sm btn-primary py-0 px-2"
-                                                onClick={() => {
-                                                    const enteredName = document.getElementById('searchAccount').value.trim();
-                                                    if (enteredName) {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            accountName: enteredName,
-                                                            accountId: '',
-                                                            accountAddress: '',
-                                                            accountPan: '',
-                                                            accountEmail: '',
-                                                            accountPhone: ''
-                                                        }));
-                                                        setIsManualAccountEntry(true);
-                                                        setShowAccountModal(false);
-                                                        setTimeout(() => {
-                                                            document.getElementById('address').focus();
-                                                        }, 100);
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '24px',
-                                                    fontSize: '0.75rem'
-                                                }}
-                                            >
-                                                Use Entered Name
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn btn-sm btn-outline-secondary py-0 px-2"
-                                                onClick={handleAccountModalClose}
-                                                style={{
-                                                    height: '24px',
-                                                    fontSize: '0.75rem'
-                                                }}
-                                            >
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )} */}
 
             {showAccountModal && (
                 <AccountModalForSales
@@ -6464,10 +6078,20 @@ const AddSalesOpen = () => {
                 )
             }
 
+            <CashBillSettlementModal
+                show={showCashSettlementModal}
+                totalAmount={totals.totalAmount}
+                formatter={formatter}
+                initialSettlement={cashSettlement}
+                onConfirm={handleCashSettlementConfirm}
+                onCancel={handleCashSettlementCancel}
+            />
+
             {/* Product modal */}
             {showProductModal && (
                 <ProductModal onClose={() => setShowProductModal(false)} />
             )}
+
 
             {showStockAdjustmentModal && (
                 <StockAdjustmentModal
@@ -6539,7 +6163,7 @@ const AddSalesOpen = () => {
                     </div>
                 )
             } */}
-        {/* Account Creation Modal */}
+            {/* Account Creation Modal */}
             {showAccountCreationModal && (
                 <div
                     className="modal fade show"
@@ -6621,116 +6245,116 @@ const AddSalesOpen = () => {
             )}
 
             {showItemsModal && (
-                    <div
-                        className="modal fade show"
-                        tabIndex="-1"
-                        style={{
-                            display: 'block',
-                            backgroundColor: 'rgba(0,0,0,0.7)',
-                            zIndex: 1060
-                        }}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setShowItemsModal(false);
-                                setTimeout(() => {
-                                    if (headerSearchInputRef.current) {
-                                        headerSearchInputRef.current.focus();
-                                        headerSearchInputRef.current.select();
-                                    }
-                                    sessionStorage.removeItem('returnToHeaderModal');
-                                }, 100);
-                            }
-                        }}
-                    >
-                        <div className="modal-dialog modal-fullscreen">
-                            <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
-                                {/* Minimized Header */}
-                                <div className="modal-header py-1 px-2 bg-primary text-white" style={{ minHeight: '32px', position: 'relative' }}>
-                                    <h5 className="modal-title" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
-                                        <i className="bi bi-plus-circle me-1" style={{ fontSize: '0.8rem' }}></i>
-                                        Create New Item
-                                    </h5>
-                                    <button
-                                        type="button"
-                                        className="btn-close btn-close-white"
-                                        style={{
-                                            fontSize: '0.6rem',
-                                            margin: '0',
-                                            padding: '0.5rem',
-                                            position: 'relative',
-                                            right: '0'
-                                        }}
-                                        onClick={() => {
-                                            setShowItemsModal(false);
-                                            setTimeout(() => {
-                                                if (headerSearchInputRef.current) {
-                                                    headerSearchInputRef.current.focus();
-                                                    headerSearchInputRef.current.select();
-                                                }
-                                                sessionStorage.removeItem('returnToHeaderModal');
-                                            }, 100);
-                                        }}
-                                    />
-                                </div>
-
-                                {/* Body - with Escape key handler for iframe */}
-                                <div className="modal-body p-0">
-                                    <iframe
-                                        src="/retailer/items"
-                                        title="Item Creation"
-                                        style={{ width: '100%', height: '100%', border: 'none' }}
-                                        onLoad={(e) => {
-                                            // Add Escape key listener to iframe content
-                                            const iframe = e.target;
-                                            const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-
-                                            if (iframeDocument) {
-                                                iframeDocument.addEventListener('keydown', (event) => {
-                                                    if (event.key === 'Escape') {
-                                                        event.preventDefault();
-                                                        event.stopPropagation();
-                                                        setShowItemsModal(false);
-                                                        setTimeout(() => {
-                                                            if (headerSearchInputRef.current) {
-                                                                headerSearchInputRef.current.focus();
-                                                                headerSearchInputRef.current.select();
-                                                            }
-                                                            sessionStorage.removeItem('returnToHeaderModal');
-                                                        }, 100);
-                                                    }
-                                                });
+                <div
+                    className="modal fade show"
+                    tabIndex="-1"
+                    style={{
+                        display: 'block',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        zIndex: 1060
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowItemsModal(false);
+                            setTimeout(() => {
+                                if (headerSearchInputRef.current) {
+                                    headerSearchInputRef.current.focus();
+                                    headerSearchInputRef.current.select();
+                                }
+                                sessionStorage.removeItem('returnToHeaderModal');
+                            }, 100);
+                        }
+                    }}
+                >
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            {/* Minimized Header */}
+                            <div className="modal-header py-1 px-2 bg-primary text-white" style={{ minHeight: '32px', position: 'relative' }}>
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                                    <i className="bi bi-plus-circle me-1" style={{ fontSize: '0.8rem' }}></i>
+                                    Create New Item
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    style={{
+                                        fontSize: '0.6rem',
+                                        margin: '0',
+                                        padding: '0.5rem',
+                                        position: 'relative',
+                                        right: '0'
+                                    }}
+                                    onClick={() => {
+                                        setShowItemsModal(false);
+                                        setTimeout(() => {
+                                            if (headerSearchInputRef.current) {
+                                                headerSearchInputRef.current.focus();
+                                                headerSearchInputRef.current.select();
                                             }
-                                        }}
-                                    />
-                                </div>
+                                            sessionStorage.removeItem('returnToHeaderModal');
+                                        }, 100);
+                                    }}
+                                />
+                            </div>
 
-                                {/* Minimized Footer */}
-                                <div className="modal-footer py-1 px-2 bg-light" style={{ minHeight: '36px', borderTop: '1px solid #dee2e6' }}>
-                                    <button
-                                        type="button"
-                                        className="btn btn-sm btn-secondary"
-                                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
-                                        onClick={() => {
-                                            setShowItemsModal(false);
-                                            setTimeout(() => {
-                                                if (headerSearchInputRef.current) {
-                                                    headerSearchInputRef.current.focus();
-                                                    headerSearchInputRef.current.select();
+                            {/* Body - with Escape key handler for iframe */}
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/items"
+                                    title="Item Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                    onLoad={(e) => {
+                                        // Add Escape key listener to iframe content
+                                        const iframe = e.target;
+                                        const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                                        if (iframeDocument) {
+                                            iframeDocument.addEventListener('keydown', (event) => {
+                                                if (event.key === 'Escape') {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    setShowItemsModal(false);
+                                                    setTimeout(() => {
+                                                        if (headerSearchInputRef.current) {
+                                                            headerSearchInputRef.current.focus();
+                                                            headerSearchInputRef.current.select();
+                                                        }
+                                                        sessionStorage.removeItem('returnToHeaderModal');
+                                                    }, 100);
                                                 }
-                                                sessionStorage.removeItem('returnToHeaderModal');
-                                            }, 100);
-                                        }}
-                                    >
-                                        <i className="bi bi-arrow-left me-1" style={{ fontSize: '0.7rem' }}></i>
-                                        Close
-                                    </button>
-                                </div>
+                                            });
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            {/* Minimized Footer */}
+                            <div className="modal-footer py-1 px-2 bg-light" style={{ minHeight: '36px', borderTop: '1px solid #dee2e6' }}>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-secondary"
+                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                                    onClick={() => {
+                                        setShowItemsModal(false);
+                                        setTimeout(() => {
+                                            if (headerSearchInputRef.current) {
+                                                headerSearchInputRef.current.focus();
+                                                headerSearchInputRef.current.select();
+                                            }
+                                            sessionStorage.removeItem('returnToHeaderModal');
+                                        }, 100);
+                                    }}
+                                >
+                                    <i className="bi bi-arrow-left me-1" style={{ fontSize: '0.7rem' }}></i>
+                                    Close
+                                </button>
                             </div>
                         </div>
                     </div>
-                )
+                </div>
+            )
             }
 
         </div >
