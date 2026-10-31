@@ -64,7 +64,7 @@ namespace SkyForge.Controllers.Retailer
                     .FirstOrDefaultAsync(a => a.Id == accountId && a.CompanyId == companyId);
 
                 if (account == null || string.IsNullOrWhiteSpace(account.Email))
-                    return BadRequest(new { success = false, error = "Account or Email not found. Please update the client's profile." });
+                    return BadRequest(new { success = false, error = "Email not found. Please update the client's profile." });
 
                 // 3. Get or Generate the Share Token
                 var tokenRecord = await _context.AccountShareTokens.FirstOrDefaultAsync(t => t.AccountId == accountId && t.IsActive);
