@@ -2767,7 +2767,9 @@ const AddSales = () => {
                     cashAccountPhone: formData.accountPhone || formData.phone || null,
                     cashSettlementType: settlement.type,
                     cashReceivedAmount: receivedAmount,
-                    cashSettlementRemarks: settlement.remarks || null
+                    cashSettlementRemarks: settlement.remarks || null,
+                    cashTenderedAmount: settlement.tenderedAmount ?? receivedAmount,
+                    cashChangeAmount: settlement.changeAmount ?? 0,
                 };
             } else {
                 accountData = { accountId: formData.accountId };
@@ -2890,6 +2892,265 @@ const AddSales = () => {
         localStorage.setItem('printAfterSaveSales', isChecked);
     };
 
+    // const printImmediately = async (billId) => {
+    //     try {
+    //         const response = await api.get(`/api/retailer/sales/${billId}/print`);
+    //         const printData = response.data.data;
+
+    //         const tempDiv = document.createElement('div');
+    //         tempDiv.style.position = 'absolute';
+    //         tempDiv.style.left = '-9999px';
+    //         document.body.appendChild(tempDiv);
+
+    //         tempDiv.innerHTML = `
+    //         <div id="printableContent">
+    //             <div class="print-invoice-container">
+    //                 <div class="print-invoice-header">
+    //                     <div class="print-company-name">${printData.currentCompanyName || ''}</div>
+    //                     <div class="print-company-details">
+    //                         ${printData.currentCompany?.address || ''} | Tel: ${printData.currentCompany?.phone || ''} | PAN: ${printData.currentCompany?.pan || ''}
+    //                     </div>
+    //                     <div class="print-invoice-title">${printData.firstBill ? 'TAX INVOICE' : 'INVOICE'}</div>
+    //                 </div>
+
+    //                 <div class="print-invoice-details">
+    //                     <div>
+    //                         <div><strong>M/S:</strong> ${printData.bill.account?.name || ''}</div>
+    //                         <div><strong>Address:</strong> ${printData.bill.account?.address || ''}</div>
+    //                         <div><strong>PAN:</strong> ${printData.bill.account?.pan || ''}</div>
+    //                         <div><strong>Email:</strong> ${printData.bill.account?.email || ''}, <strong>Tel:</strong> ${printData.bill.account?.phone || ''}</div>
+    //                     </div>
+    //                     <div>
+    //                         <div><strong>Invoice No:</strong> ${printData.bill.billNumber || 'N/A'}</div>
+    //                         <div><strong>Trans. Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.transactionDateNepali, 'Nepali') : formatDateForInput(printData.bill.transactionDate)}(${new Date(printData.bill.transactionDate).toLocaleDateString()})</div>
+    //                         <div><strong>Invoice Date:</strong> ${printData.companyDateFormat === 'nepali' ? formatDateForInput(printData.nepaliDate, 'Nepali') : formatDateForInput(printData.bill.date)}(${new Date(printData.bill.date).toLocaleDateString()})</div>
+    //                         <div><strong>Mode of Payment:</strong> ${printData.bill.paymentMode || 'N/A'}</div>
+    //                     </div>
+    //                 </div>
+
+    //                 <table class="print-invoice-table">
+    //                     <thead>
+    //                         <tr>
+    //                             <th>SN</th>
+    //                             <th>#</th>
+    //                             <th>HSN</th>
+    //                             <th>Description of Goods</th>
+    //                             <th>Unit</th>
+    //                             <th>Batch</th>
+    //                             <th>Expiry</th>
+    //                             <th>Qty</th>
+    //                             <th>Rate</th>
+    //                             <th>Total</th>
+    //                         </tr>
+    //                     </thead>
+    //                     <tbody>
+    //                         ${printData.bill.items?.map((item, i) => `
+    //                             <tr key="${i}">
+    //                                 <td>${i + 1}</td>
+    //                                 <td>${item.item?.uniqueNumber || item.uniqueNumber || ''}</td>
+    //                                 <td>${item.item?.hscode || item.hscode || ''}</td>
+    //                                 <td>
+    //                                     ${item.item?.name || item.itemName || ''}
+    //                                     ${item.item?.vatStatus === 'vatExempt' ? '*' : ''}
+    //                                 </td>
+    //                                 <td>${item.item?.unit?.name || item.unitName || ''}</td>
+    //                                 <td>${item.batchNumber || ''}</td>
+    //                                 <td>${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
+    //                                 <td>${item.quantity || 0}</td>
+    //                                 <td>${(item.price || 0).toFixed(2)}</td>
+    //                                 <td>${((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
+    //                             </tr>
+    //                         `).join('') || ''}
+    //                     </tbody>
+    //                     <tr>
+    //                         <td colSpan="10" style="border-bottom: 1px dashed #000"></td>
+    //                     </tr>
+    //                 </table>
+
+    //                 <table class="print-totals-table">
+    //                     <tbody>
+    //                         <tr>
+    //                             <td><strong>Sub Total:</strong></td>
+    //                             <td class="print-text-right">${(printData.bill.subTotal || 0).toFixed(2)}</td>
+    //                         </tr>
+    //                         <tr>
+    //                             <td><strong>Discount:</strong></td>
+    //                             <td class="print-text-right">${(printData.bill.discountAmount || 0).toFixed(2)}</td>
+    //                         </tr>
+    //                         <tr>
+    //                             <td><strong>Non-Taxable:</strong></td>
+    //                             <td class="print-text-right">${(printData.bill.nonVatSales || 0).toFixed(2)}</td>
+    //                         </tr>
+    //                         <tr>
+    //                             <td><strong>Taxable Amount:</strong></td>
+    //                             <td class="print-text-right">${(printData.bill.taxableAmount || 0).toFixed(2)}</td>
+    //                         </tr>
+    //                         ${!printData.bill.isVatExempt ? `
+    //                             <tr>
+    //                                 <td><strong>VAT (${printData.bill.vatPercentage || 13}%):</strong></td>
+    //                                 <td class="print-text-right">${(printData.bill.vatAmount || 0).toFixed(2)}</td>
+    //                             </tr>
+    //                         ` : ''}
+    //                         <tr>
+    //                             <td><strong>Round Off:</strong></td>
+    //                             <td class="print-text-right">${(printData.bill.roundOffAmount || 0).toFixed(2)}</td>
+    //                         </tr>
+    //                         <tr>
+    //                             <td><strong>Grand Total:</strong></td>
+    //                             <td class="print-text-right">${(printData.bill.totalAmount || 0).toFixed(2)}</td>
+    //                         </tr>
+    //                     </tbody>
+    //                 </table>
+
+    //                 <div class="print-amount-in-words">
+    //                     <strong>In Words:</strong> ${convertToRupeesAndPaisaNepali(printData.bill.totalAmount || 0)} Only.
+    //                 </div>
+
+    //                 <div class="print-signature-area">
+    //                     <div class="print-signature-box">Received By</div>
+    //                     <div class="print-signature-box">Prepared By: ${printData.bill.user?.name || ''}</div>
+    //                     <div class="print-signature-box">For: ${printData.currentCompanyName || ''}</div>
+    //                 </div>
+    //             </div>
+    //         </div>
+    //     `;
+
+    //         const styles = `
+    //         @page {
+    //             size: A4;
+    //             margin: 5mm;
+    //         }
+    //         body {
+    //             font-family: 'Arial Narrow', Arial, sans-serif;
+    //             font-size: 9pt;
+    //             line-height: 1.2;
+    //             color: #000;
+    //             background: white;
+    //             margin: 0;
+    //             padding: 0;
+    //         }
+    //         .print-invoice-container {
+    //             width: 100%;
+    //             max-width: 210mm;
+    //             margin: 0 auto;
+    //             padding: 2mm;
+    //         }
+    //         .print-invoice-header {
+    //             text-align: center;
+    //             margin-bottom: 3mm;
+    //             border-bottom: 1px solid #000;
+    //             padding-bottom: 2mm;
+    //         }
+    //         .print-invoice-title {
+    //             font-size: 12pt;
+    //             font-weight: bold;
+    //             margin: 2mm 0;
+    //             text-transform: uppercase;
+    //         }
+    //         .print-company-name {
+    //             font-size: 16pt;
+    //             font-weight: bold;
+    //         }
+    //         .print-company-details {
+    //             font-size: 8pt;
+    //             margin: 1mm 0;
+    //             font-weight: bold;
+    //         }
+    //         .print-invoice-details {
+    //             display: flex;
+    //             justify-content: space-between;
+    //             margin: 2mm 0;
+    //             font-size: 8pt;
+    //         }
+    //         .print-invoice-table {
+    //             width: 100%;
+    //             border-collapse: collapse;
+    //             margin: 3mm 0;
+    //             font-size: 8pt;
+    //             border: none;
+    //         }
+    //         .print-invoice-table thead {
+    //             border-top: 1px solid #000;
+    //             border-bottom: 1px solid #000;
+    //         }
+    //         .print-invoice-table th {
+    //             background-color: transparent;
+    //             border: none;
+    //             padding: 1mm;
+    //             text-align: left;
+    //             font-weight: bold;
+    //         }
+    //         .print-invoice-table td {
+    //             border: none;
+    //             padding: 1mm;
+    //             border-bottom: 1px solid #eee;
+    //         }
+    //         .print-text-right {
+    //             text-align: right;
+    //         }
+    //         .print-amount-in-words {
+    //             font-size: 8pt;
+    //             margin: 2mm 0;
+    //             padding: 1mm;
+    //             border: 1px dashed #000;
+    //         }
+    //         .print-signature-area {
+    //             display: flex;
+    //             justify-content: space-between;
+    //             margin-top: 5mm;
+    //             font-size: 8pt;
+    //         }
+    //         .print-signature-box {
+    //             text-align: center;
+    //             width: 30%;
+    //             border-top: 1px solid #000;
+    //             padding-top: 1mm;
+    //             font-weight: bold;
+    //         }
+    //         .print-totals-table {
+    //             width: 60%;
+    //             margin-left: auto;
+    //             border-collapse: collapse;
+    //             font-size: 8pt;
+    //         }
+    //         .print-totals-table td {
+    //             padding: 1mm;
+    //         }
+    //     `;
+
+    //         const printWindow = window.open('', '_blank');
+    //         printWindow.document.write(`
+    //         <html>
+    //             <head>
+    //                 <title>Sales_Invoice_${printData.bill.billNumber}</title>
+    //                 <style>${styles}</style>
+    //             </head>
+    //             <body>
+    //                 ${tempDiv.innerHTML}
+    //                 <script>
+    //                     window.onload = function() {
+    //                         setTimeout(function() {
+    //                             window.print();
+    //                             window.close();
+    //                         }, 200);
+    //                     };
+    //                 </script>
+    //             </body>
+    //         </html>
+    //     `);
+    //         printWindow.document.close();
+
+    //         document.body.removeChild(tempDiv);
+    //     } catch (error) {
+    //         console.error('Error fetching print data:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Bill saved but failed to load print data',
+    //             type: 'warning'
+    //         });
+    //     }
+    // };
+
     const printImmediately = async (billId) => {
         try {
             const response = await api.get(`/api/retailer/sales/${billId}/print`);
@@ -2999,6 +3260,36 @@ const AddSales = () => {
                             </tr>
                         </tbody>
                     </table>
+
+                    ${/* ✅ CASH SETTLEMENT DETAILS */ ''}
+                    ${printData.bill.paymentMode === 'cash' ? `
+                        <table class="print-totals-table" style="margin-top: 2mm; border-top: 1px dashed #000;">
+                            <tbody>
+                                <tr>
+                                    <td><strong>Cash Tendered:</strong></td>
+                                    <td class="print-text-right">${(printData.bill.cashTenderedAmount || 0).toFixed(2)}</td>
+                                </tr>
+                                ${(printData.bill.cashChangeAmount || 0) > 0 ? `
+                                    <tr>
+                                        <td><strong>Change Returned:</strong></td>
+                                        <td class="print-text-right">(${(printData.bill.cashChangeAmount || 0).toFixed(2)})</td>
+                                    </tr>
+                                ` : ''}
+                                <tr>
+                                    <td><strong>Cash Received:</strong></td>
+                                    <td class="print-text-right">${(printData.bill.cashReceivedAmount || 0).toFixed(2)}</td>
+                                </tr>
+                                ${(printData.bill.cashRemainingAmount || 0) > 0 ? `
+                                    <tr>
+                                        <td><strong>Balance Due:</strong></td>
+                                        <td class="print-text-right" style="font-weight: bold;">
+                                            ${(printData.bill.cashRemainingAmount || 0).toFixed(2)}
+                                        </td>
+                                    </tr>
+                                ` : ''}
+                            </tbody>
+                        </table>
+                    ` : ''}
 
                     <div class="print-amount-in-words">
                         <strong>In Words:</strong> ${convertToRupeesAndPaisaNepali(printData.bill.totalAmount || 0)} Only.
@@ -5920,7 +6211,7 @@ const AddSales = () => {
             />
 
             {/* Account Creation Modal */}
-            {showAccountCreationModal && (
+            {/* {showAccountCreationModal && (
                 <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
                     <div className="modal-dialog modal-fullscreen">
                         <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
@@ -5953,8 +6244,88 @@ const AddSales = () => {
                         </div>
                     </div>
                 </div>
-            )}
+            )} */}
 
+        {/* Account Creation Modal */}
+            {showAccountCreationModal && (
+                <div
+                    className="modal fade show"
+                    tabIndex="-1"
+                    style={{
+                        display: 'block',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        zIndex: 1060
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleAccountCreationModalClose();
+                        }
+                    }}
+                >
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            {/* Minimized Header */}
+                            <div className="modal-header py-1 px-2 bg-primary text-white" style={{ minHeight: '32px', position: 'relative' }}>
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                                    <i className="bi bi-plus-circle me-1" style={{ fontSize: '0.8rem' }}></i>
+                                    Create New Account
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    style={{
+                                        fontSize: '0.6rem',
+                                        margin: '0',
+                                        padding: '0.5rem',
+                                        position: 'relative',
+                                        right: '0'
+                                    }}
+                                    onClick={handleAccountCreationModalClose}
+                                />
+                            </div>
+
+                            {/* Body - with Escape key handler for iframe */}
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/accounts"
+                                    title="Account Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                    onLoad={(e) => {
+                                        // Add Escape key listener to iframe content
+                                        const iframe = e.target;
+                                        const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                                        if (iframeDocument) {
+                                            iframeDocument.addEventListener('keydown', (event) => {
+                                                if (event.key === 'Escape') {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    handleAccountCreationModalClose();
+                                                }
+                                            });
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            {/* Minimized Footer */}
+                            <div className="modal-footer py-1 px-2 bg-light" style={{ minHeight: '36px', borderTop: '1px solid #dee2e6' }}>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-secondary"
+                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                                    onClick={handleAccountCreationModalClose}
+                                >
+                                    <i className="bi bi-arrow-left me-1" style={{ fontSize: '0.7rem' }}></i>
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {showItemsModal && (
                 <div

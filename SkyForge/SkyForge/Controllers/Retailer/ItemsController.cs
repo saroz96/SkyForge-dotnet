@@ -1321,6 +1321,7 @@ namespace SkyForge.Controllers.Retailer
                         entry.ExpiryStatus,
                         entry.DaysUntilExpiry,
                         entry.Date,
+                        entry.NepaliDate,
                         entry.CreatedAt,
                         entry.UpdatedAt,
                         BarcodeData = $"{companyName}|{item.UniqueNumber}|{entry.Mrp}|{entry.BatchNumber ?? ""}|{entry.ExpiryDate.ToString("yyyy-MM-dd") ?? ""}"
@@ -2124,6 +2125,7 @@ namespace SkyForge.Controllers.Retailer
                             Id = se.Id,
                             ItemId = se.ItemId,
                             Date = se.Date,
+                            NepaliDate=se.NepaliDate,
                             Quantity = se.Quantity,
                             BillQty = se.BillQty,
                             ActualQty = se.ActualQty,

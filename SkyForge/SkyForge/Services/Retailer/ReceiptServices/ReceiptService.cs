@@ -714,7 +714,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 var cashAccounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            groupsToInclude.Contains(a.AccountGroupsId) &&
                            _context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId && ag.Name == "Cash in Hand"))
                     .Select(a => new AccountInfoDTO
@@ -732,7 +731,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 var bankAccounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            groupsToInclude.Contains(a.AccountGroupsId) &&
                            _context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId &&
                                (ag.Name == "Bank Accounts" || ag.Name == "Bank O/D Account")))
@@ -754,7 +752,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 var accounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            !groupsToExclude.Contains(a.AccountGroupsId))
                     .Select(a => new AccountInfoDTO
                     {
@@ -1558,7 +1555,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 var cashAccounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            _context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId && ag.Name == "Cash in Hand"))
                     .Select(a => new AccountInfoDTO
                     {
@@ -1575,7 +1571,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 var bankAccounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            _context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId &&
                                (ag.Name == "Bank Accounts" || ag.Name == "Bank O/D Account")))
                     .Select(a => new AccountInfoDTO
@@ -1593,7 +1588,6 @@ namespace SkyForge.Services.Retailer.ReceiptServices
                 var accounts = await _context.Accounts
                     .Where(a => a.CompanyId == companyId &&
                            a.IsActive &&
-                           a.OriginalFiscalYearId == fiscalYearId &&
                            !_context.AccountGroups.Any(ag => ag.Id == a.AccountGroupsId &&
                                (ag.Name == "Cash in Hand" || ag.Name == "Bank Accounts" || ag.Name == "Bank O/D Account")))
                     .Select(a => new AccountInfoDTO

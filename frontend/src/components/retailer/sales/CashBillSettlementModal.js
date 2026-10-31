@@ -8,7 +8,7 @@
 //     onConfirm,
 //     onCancel
 // }) => {
-//     const [type, setType] = useState('full');
+//     const [type, setType] = useState('full'); // 'full' | 'partial' | 'pending'
 //     const [received, setReceived] = useState(0);
 //     const [remarks, setRemarks] = useState('');
 //     const [error, setError] = useState('');
@@ -20,11 +20,16 @@
 //     useEffect(() => {
 //         if (!show) return;
 //         const t = initialSettlement?.type || 'full';
-//         const r = initialSettlement?.type === 'partial'
-//             ? (parseFloat(initialSettlement?.receivedAmount) || 0)
-//             : totalAmount;
+//         let r = totalAmount;
+        
+//         if (t === 'partial') {
+//             r = parseFloat(initialSettlement?.receivedAmount) || 0;
+//         } else if (t === 'pending') {
+//             r = 0;
+//         }
+
 //         setType(t);
-//         setReceived(t === 'full' ? totalAmount : r);
+//         setReceived(r);
 //         setRemarks(initialSettlement?.remarks || '');
 //         setError('');
 //     }, [show, totalAmount, initialSettlement]);
@@ -64,7 +69,7 @@
 //     const handleConfirm = () => {
 //         const receivedNum = type === 'full'
 //             ? totalAmount
-//             : parseFloat(received) || 0;
+//             : type === 'pending' ? 0 : parseFloat(received) || 0;
 
 //         if (receivedNum < 0) {
 //             setError('Amount received cannot be negative.');
@@ -124,14 +129,14 @@
 //                         />
 //                     </div>
 
-//                     {/* Body — matches the inline panel layout */}
+//                     {/* Body */}
 //                     <div className="modal-body p-2">
 //                         <div
 //                             className="row g-1 mb-2 p-2 rounded"
 //                             style={{ background: '#f8f9fa', border: '1px dashed #6c757d' }}
 //                         >
-//                             {/* Bill Total (read-only display, keeps context visible) */}
-//                             <div className="col-12 col-md-4">
+//                             {/* Bill Total */}
+//                             <div className="col-12 col-md-3">
 //                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
 //                                     Bill Total
 //                                 </label>
@@ -150,7 +155,7 @@
 //                             </div>
 
 //                             {/* Settlement Type */}
-//                             <div className="col-12 col-md-4">
+//                             <div className="col-12 col-md-3">
 //                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
 //                                     Settlement
 //                                 </label>
@@ -161,17 +166,20 @@
 //                                         const next = e.target.value;
 //                                         setType(next);
 //                                         setError('');
-//                                         setReceived(next === 'full' ? totalAmount : 0);
+//                                         if (next === 'full') setReceived(totalAmount);
+//                                         else if (next === 'pending') setReceived(0);
+//                                         else setReceived(0);
 //                                     }}
 //                                     style={{ height: '34px', fontSize: '0.875rem' }}
 //                                 >
 //                                     <option value="full">Full</option>
 //                                     <option value="partial">Partial</option>
+//                                     <option value="pending">Pending</option>
 //                                 </select>
 //                             </div>
 
 //                             {/* Amount Received */}
-//                             <div className="col-12 col-md-4">
+//                             <div className="col-12 col-md-3">
 //                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
 //                                     Amount Received
 //                                 </label>
@@ -183,7 +191,7 @@
 //                                     max={totalAmount}
 //                                     className={`form-control form-control-sm ${error ? 'is-invalid' : ''}`}
 //                                     value={received}
-//                                     disabled={type === 'full'}
+//                                     disabled={type !== 'partial'}
 //                                     onChange={(e) => {
 //                                         setError('');
 //                                         setReceived(e.target.value);
@@ -191,7 +199,6 @@
 //                                     onKeyDown={(e) => {
 //                                         if (e.key === 'Enter') {
 //                                             e.preventDefault();
-//                                             // ✅ Move focus to Remarks field instead of saving
 //                                             remarksRef.current?.focus();
 //                                             remarksRef.current?.select();
 //                                         }
@@ -199,13 +206,13 @@
 //                                     style={{
 //                                         height: '34px',
 //                                         fontSize: '0.875rem',
-//                                         background: type === 'full' ? '#e9ecef' : '#fff'
+//                                         background: type !== 'partial' ? '#e9ecef' : '#fff'
 //                                     }}
 //                                 />
 //                             </div>
 
 //                             {/* Remaining */}
-//                             <div className="col-12 col-md-4">
+//                             <div className="col-12 col-md-3">
 //                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
 //                                     Remaining (Due)
 //                                 </label>
@@ -225,7 +232,7 @@
 //                             </div>
 
 //                             {/* Remarks */}
-//                             <div className="col-12 col-md-8">
+//                             <div className="col-12">
 //                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
 //                                     Remarks
 //                                 </label>
@@ -240,7 +247,6 @@
 //                                     onKeyDown={(e) => {
 //                                         if (e.key === 'Enter') {
 //                                             e.preventDefault();
-//                                             // ✅ Move focus to Save button instead of saving directly
 //                                             confirmRef.current?.focus();
 //                                         }
 //                                     }}
@@ -296,7 +302,218 @@
 
 // export default CashBillSettlementModal;
 
-//----------------------------------------------------end1
+//--------------------------------------------------------------end1
+
+// import React, { useState, useEffect, useRef } from 'react';
+
+// const CashBillSettlementModal = ({
+//     show,
+//     totalAmount,
+//     formatter,
+//     initialSettlement,
+//     onConfirm,
+//     onCancel
+// }) => {
+//     const [type, setType] = useState('full');
+//     const [tendered, setTendered] = useState(0);
+//     const [remarks, setRemarks] = useState('');
+//     const [error, setError] = useState('');
+    
+//     const tenderedRef = useRef(null);
+//     const remarksRef = useRef(null);
+//     const confirmRef = useRef(null);
+
+//     // Sync from initialSettlement whenever the modal opens
+//     useEffect(() => {
+//         if (!show) return;
+//         const t = initialSettlement?.type || 'full';
+        
+//         setType(t);
+//         setTendered(t === 'pending' ? 0 : totalAmount);
+//         setRemarks(initialSettlement?.remarks || '');
+//         setError('');
+//     }, [show, totalAmount, initialSettlement]);
+
+//     // Calculations
+//     const tenderedNum = parseFloat(tendered) || 0;
+//     const actualReceived = Math.min(tenderedNum, totalAmount); // Cap at bill total
+//     const changeToReturn = tenderedNum > totalAmount ? tenderedNum - totalAmount : 0;
+//     const remaining = Math.max(0, Math.round((totalAmount - actualReceived) * 100) / 100);
+
+//     // Focus the right input when the modal opens
+//     useEffect(() => {
+//         if (!show) return;
+//         const t = setTimeout(() => {
+//             if (type !== 'pending') {
+//                 tenderedRef.current?.focus();
+//                 tenderedRef.current?.select();
+//             } else {
+//                 remarksRef.current?.focus();
+//             }
+//         }, 100);
+//         return () => clearTimeout(t);
+//     }, [show, type]);
+
+//     // Keyboard: Esc = cancel
+//     useEffect(() => {
+//         if (!show) return;
+//         const onKey = (e) => {
+//             if (e.key === 'Escape') {
+//                 e.preventDefault();
+//                 onCancel();
+//             }
+//         };
+//         document.addEventListener('keydown', onKey);
+//         return () => document.removeEventListener('keydown', onKey);
+//     }, [show, onCancel]);
+
+//     if (!show) return null;
+
+//     const handleConfirm = () => {
+//         if (type !== 'pending' && tenderedNum <= 0) {
+//             setError('Amount tendered must be greater than 0.');
+//             return;
+//         }
+//         if (type === 'full' && tenderedNum < totalAmount) {
+//             setError('Full settlement requires cash tendered to cover the bill total.');
+//             return;
+//         }
+
+//         onConfirm({
+//             type,
+//             receivedAmount: Math.round(actualReceived * 100) / 100,
+//             remainingAmount: remaining,
+//             tenderedAmount: Math.round(tenderedNum * 100) / 100,
+//             changeAmount: Math.round(changeToReturn * 100) / 100,
+//             remarks: remarks.trim()
+//         });
+//     };
+
+//     return (
+//         <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }} role="dialog" aria-modal="true">
+//             <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '860px', margin: '1.75rem auto' }}>
+//                 <div className="modal-content shadow-sm border-0 rounded-2">
+                    
+//                     {/* Header */}
+//                     <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
+//                         <div className="d-flex align-items-center">
+//                             <i className="bi bi-cash-coin text-white me-1" style={{ fontSize: '0.9rem' }}></i>
+//                             <h6 className="modal-title text-white mb-0" style={{ fontSize: '0.85rem', fontWeight: '500' }}>Cash Settlement</h6>
+//                         </div>
+//                         <button type="button" className="btn-close btn-close-white" style={{ fontSize: '0.5rem', padding: '0.5rem' }} onClick={onCancel} aria-label="Close" />
+//                     </div>
+
+//                     {/* Body */}
+//                     <div className="modal-body p-2">
+//                         <div className="row g-1 mb-2 p-2 rounded" style={{ background: '#f8f9fa', border: '1px dashed #6c757d' }}>
+                            
+//                             {/* Bill Total */}
+//                             <div className="col-12 col-md-4">
+//                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Bill Total</label>
+//                                 <input type="text" readOnly className="form-control form-control-sm" value={`Rs. ${formatter.format(totalAmount)}`} style={{ height: '34px', fontSize: '0.875rem', background: '#e9ecef', fontWeight: '600' }} />
+//                             </div>
+
+//                             {/* Settlement Type */}
+//                             <div className="col-12 col-md-4">
+//                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Settlement Type</label>
+//                                 <select className="form-control form-control-sm" value={type} onChange={(e) => {
+//                                     const next = e.target.value;
+//                                     setType(next);
+//                                     setError('');
+//                                     setTendered(next === 'pending' ? 0 : totalAmount);
+//                                 }} style={{ height: '34px', fontSize: '0.875rem' }}>
+//                                     <option value="full">Full Settlement</option>
+//                                     <option value="partial">Partial Settlement</option>
+//                                     <option value="pending">Pending (No Cash)</option>
+//                                 </select>
+//                             </div>
+
+//                             {/* Cash Tendered */}
+//                             <div className="col-12 col-md-4">
+//                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Cash Tendered</label>
+//                                 <input
+//                                     ref={tenderedRef}
+//                                     type="number"
+//                                     step="any"
+//                                     min="0"
+//                                     className={`form-control form-control-sm ${error ? 'is-invalid' : ''}`}
+//                                     value={tendered}
+//                                     disabled={type === 'pending'}
+//                                     onChange={(e) => { setError(''); setTendered(e.target.value); }}
+//                                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); remarksRef.current?.focus(); } }}
+//                                     style={{ height: '34px', fontSize: '0.875rem', background: type === 'pending' ? '#e9ecef' : '#fff' }}
+//                                 />
+//                             </div>
+
+//                             {/* Breakdown: Received / Change / Remaining */}
+//                             {type !== 'pending' && (
+//                                 <div className="col-12 mt-2">
+//                                     <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ background: '#fff', border: '1px solid #dee2e6', fontSize: '0.8rem' }}>
+//                                         <div>
+//                                             <span className="text-muted">Applied to Bill:</span>
+//                                             <strong className="ms-1">Rs. {formatter.format(actualReceived)}</strong>
+//                                         </div>
+                                        
+//                                         {changeToReturn > 0 && (
+//                                             <div className="text-success">
+//                                                 <i className="bi bi-arrow-return-left me-1"></i>
+//                                                 <span className="text-muted">Change:</span>
+//                                                 <strong className="ms-1">Rs. {formatter.format(changeToReturn)}</strong>
+//                                             </div>
+//                                         )}
+
+//                                         {remaining > 0 && (
+//                                             <div className="text-danger">
+//                                                 <span className="text-muted">Balance Due:</span>
+//                                                 <strong className="ms-1">Rs. {formatter.format(remaining)}</strong>
+//                                             </div>
+//                                         )}
+//                                     </div>
+//                                 </div>
+//                             )}
+
+//                             {/* Remarks */}
+//                             <div className="col-12 mt-2">
+//                                 <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Remarks</label>
+//                                 <input
+//                                     ref={remarksRef}
+//                                     type="text"
+//                                     className="form-control form-control-sm"
+//                                     value={remarks}
+//                                     onChange={(e) => setRemarks(e.target.value)}
+//                                     placeholder="e.g. Received by..."
+//                                     maxLength={500}
+//                                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmRef.current?.focus(); } }}
+//                                     style={{ height: '34px', fontSize: '0.875rem' }}
+//                                 />
+//                             </div>
+
+//                             {error && (
+//                                 <div className="col-12 mt-1">
+//                                     <small className="text-danger"><i className="bi bi-exclamation-triangle me-1"></i>{error}</small>
+//                                 </div>
+//                             )}
+//                         </div>
+//                     </div>
+
+//                     {/* Footer */}
+//                     <div className="modal-footer py-1 px-2 bg-light border-top">
+//                         <button type="button" className="btn btn-sm btn-secondary" onClick={onCancel} style={{ fontSize: '0.75rem', height: '28px' }}>
+//                             <i className="bi bi-x-lg me-1"></i> Cancel
+//                         </button>
+//                         <button ref={confirmRef} type="button" className="btn btn-sm btn-primary" onClick={handleConfirm} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleConfirm(); } }} style={{ fontSize: '0.75rem', height: '28px' }}>
+//                             <i className="bi bi-check-lg me-1"></i> Save Bill
+//                         </button>
+//                     </div>
+//                 </div>
+//             </div>
+//         </div>
+//     );
+// };
+
+// export default CashBillSettlementModal;
+
+//--------------------------------------------------------------end2
 
 import React, { useState, useEffect, useRef } from 'react';
 
@@ -309,10 +526,10 @@ const CashBillSettlementModal = ({
     onCancel
 }) => {
     const [type, setType] = useState('full'); // 'full' | 'partial' | 'pending'
-    const [received, setReceived] = useState(0);
+    const [tendered, setTendered] = useState(0);
     const [remarks, setRemarks] = useState('');
     const [error, setError] = useState('');
-    const receivedRef = useRef(null);
+    const tenderedRef = useRef(null);
     const remarksRef = useRef(null);
     const confirmRef = useRef(null);
 
@@ -320,32 +537,36 @@ const CashBillSettlementModal = ({
     useEffect(() => {
         if (!show) return;
         const t = initialSettlement?.type || 'full';
-        let r = totalAmount;
-        
+        let tenderedVal = totalAmount;
+
         if (t === 'partial') {
-            r = parseFloat(initialSettlement?.receivedAmount) || 0;
+            // If partial, default tendered to whatever was last tendered or 0
+            tenderedVal = parseFloat(initialSettlement?.tenderedAmount) || 0;
         } else if (t === 'pending') {
-            r = 0;
+            tenderedVal = 0;
         }
 
         setType(t);
-        setReceived(r);
+        setTendered(tenderedVal);
         setRemarks(initialSettlement?.remarks || '');
         setError('');
     }, [show, totalAmount, initialSettlement]);
 
-    const remaining = Math.max(0, Math.round((totalAmount - (parseFloat(received) || 0)) * 100) / 100);
+    // Calculations
+    const tenderedNum = parseFloat(tendered) || 0;
+    const actualReceived = Math.min(tenderedNum, totalAmount);
+    const changeToReturn = tenderedNum > totalAmount ? tenderedNum - totalAmount : 0;
+    const remaining = Math.max(0, Math.round((totalAmount - actualReceived) * 100) / 100);
 
     // Focus the right input when the modal opens
     useEffect(() => {
         if (!show) return;
         const t = setTimeout(() => {
-            if (type === 'partial') {
-                receivedRef.current?.focus();
-                receivedRef.current?.select();
+            if (type !== 'pending') {
+                tenderedRef.current?.focus();
+                tenderedRef.current?.select();
             } else {
                 remarksRef.current?.focus();
-                remarksRef.current?.select();
             }
         }, 100);
         return () => clearTimeout(t);
@@ -367,27 +588,21 @@ const CashBillSettlementModal = ({
     if (!show) return null;
 
     const handleConfirm = () => {
-        const receivedNum = type === 'full'
-            ? totalAmount
-            : type === 'pending' ? 0 : parseFloat(received) || 0;
-
-        if (receivedNum < 0) {
-            setError('Amount received cannot be negative.');
+        if (type !== 'pending' && tenderedNum < totalAmount && type === 'full') {
+            setError('Full settlement requires cash tendered to cover the bill total.');
             return;
         }
-        if (receivedNum > totalAmount) {
-            setError('Amount received cannot exceed the bill total.');
-            return;
-        }
-        if (type === 'partial' && receivedNum >= totalAmount) {
-            setError('Partial settlement requires received < total. Switch to Full or lower the amount.');
+        if (type !== 'pending' && tenderedNum <= 0) {
+            setError('Amount tendered must be greater than 0.');
             return;
         }
 
         onConfirm({
             type,
-            receivedAmount: Math.round(receivedNum * 100) / 100,
-            remainingAmount: Math.round((totalAmount - receivedNum) * 100) / 100,
+            receivedAmount: Math.round(actualReceived * 100) / 100,
+            remainingAmount: remaining,
+            tenderedAmount: Math.round(tenderedNum * 100) / 100,
+            changeAmount: Math.round(changeToReturn * 100) / 100,
             remarks: remarks.trim()
         });
     };
@@ -396,24 +611,14 @@ const CashBillSettlementModal = ({
         <div
             className="modal fade show"
             tabIndex="-1"
-            style={{
-                display: 'block',
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                zIndex: 1070
-            }}
+            style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}
             role="dialog"
             aria-modal="true"
         >
-            <div
-                className="modal-dialog modal-dialog-centered"
-                style={{ maxWidth: '860px', margin: '1.75rem auto' }}
-            >
+            <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '860px', margin: '1.75rem auto' }}>
                 <div className="modal-content shadow-sm border-0 rounded-2">
                     {/* Header */}
-                    <div
-                        className="modal-header py-1 px-2 bg-primary text-white rounded-top-2"
-                        style={{ borderBottom: 'none' }}
-                    >
+                    <div className="modal-header py-1 px-2 bg-primary text-white rounded-top-2" style={{ borderBottom: 'none' }}>
                         <div className="d-flex align-items-center">
                             <i className="bi bi-cash-coin text-white me-1" style={{ fontSize: '0.9rem' }}></i>
                             <h6 className="modal-title text-white mb-0" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
@@ -431,34 +636,22 @@ const CashBillSettlementModal = ({
 
                     {/* Body */}
                     <div className="modal-body p-2">
-                        <div
-                            className="row g-1 mb-2 p-2 rounded"
-                            style={{ background: '#f8f9fa', border: '1px dashed #6c757d' }}
-                        >
+                        <div className="row g-1 mb-2 p-2 rounded" style={{ background: '#f8f9fa', border: '1px dashed #6c757d' }}>
                             {/* Bill Total */}
                             <div className="col-12 col-md-3">
-                                <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
-                                    Bill Total
-                                </label>
+                                <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Bill Total</label>
                                 <input
                                     type="text"
                                     readOnly
                                     className="form-control form-control-sm"
                                     value={`Rs. ${formatter.format(totalAmount)}`}
-                                    style={{
-                                        height: '34px',
-                                        fontSize: '0.875rem',
-                                        background: '#e9ecef',
-                                        fontWeight: '600'
-                                    }}
+                                    style={{ height: '34px', fontSize: '0.875rem', background: '#e9ecef', fontWeight: '600' }}
                                 />
                             </div>
 
                             {/* Settlement Type */}
                             <div className="col-12 col-md-3">
-                                <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
-                                    Settlement
-                                </label>
+                                <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Settlement</label>
                                 <select
                                     className="form-control form-control-sm"
                                     value={type}
@@ -466,9 +659,9 @@ const CashBillSettlementModal = ({
                                         const next = e.target.value;
                                         setType(next);
                                         setError('');
-                                        if (next === 'full') setReceived(totalAmount);
-                                        else if (next === 'pending') setReceived(0);
-                                        else setReceived(0);
+                                        if (next === 'full') setTendered(totalAmount);
+                                        else if (next === 'pending') setTendered(0);
+                                        else setTendered(0);
                                     }}
                                     style={{ height: '34px', fontSize: '0.875rem' }}
                                 >
@@ -478,23 +671,20 @@ const CashBillSettlementModal = ({
                                 </select>
                             </div>
 
-                            {/* Amount Received */}
+                            {/* Cash Tendered */}
                             <div className="col-12 col-md-3">
-                                <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
-                                    Amount Received
-                                </label>
+                                <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Cash Tendered</label>
                                 <input
-                                    ref={receivedRef}
+                                    ref={tenderedRef}
                                     type="number"
                                     step="any"
                                     min="0"
-                                    max={totalAmount}
                                     className={`form-control form-control-sm ${error ? 'is-invalid' : ''}`}
-                                    value={received}
-                                    disabled={type !== 'partial'}
+                                    value={tendered}
+                                    disabled={type === 'pending'}
                                     onChange={(e) => {
                                         setError('');
-                                        setReceived(e.target.value);
+                                        setTendered(e.target.value);
                                     }}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
@@ -503,19 +693,13 @@ const CashBillSettlementModal = ({
                                             remarksRef.current?.select();
                                         }
                                     }}
-                                    style={{
-                                        height: '34px',
-                                        fontSize: '0.875rem',
-                                        background: type !== 'partial' ? '#e9ecef' : '#fff'
-                                    }}
+                                    style={{ height: '34px', fontSize: '0.875rem', background: type === 'pending' ? '#e9ecef' : '#fff' }}
                                 />
                             </div>
 
-                            {/* Remaining */}
+                            {/* Remaining (Due) */}
                             <div className="col-12 col-md-3">
-                                <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
-                                    Remaining (Due)
-                                </label>
+                                <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Remaining (Due)</label>
                                 <input
                                     type="text"
                                     readOnly
@@ -531,11 +715,31 @@ const CashBillSettlementModal = ({
                                 />
                             </div>
 
+                            {/* Breakdown row — Applied / Change */}
+                            {type !== 'pending' && (
+                                <div className="col-12 mt-1">
+                                    <div
+                                        className="d-flex justify-content-between align-items-center p-2 rounded"
+                                        style={{ background: '#fff', border: '1px solid #dee2e6', fontSize: '0.78rem' }}
+                                    >
+                                        <div>
+                                            <span className="text-muted">Applied to Bill:</span>
+                                            <strong className="ms-1">Rs. {formatter.format(actualReceived)}</strong>
+                                        </div>
+                                        {changeToReturn > 0 && (
+                                            <div className="text-success">
+                                                <i className="bi bi-arrow-return-left me-1"></i>
+                                                <span className="text-muted">Change Returned:</span>
+                                                <strong className="ms-1">Rs. {formatter.format(changeToReturn)}</strong>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Remarks */}
-                            <div className="col-12">
-                                <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>
-                                    Remarks
-                                </label>
+                            <div className="col-12 mt-1">
+                                <label className="form-label mb-0" style={{ fontSize: '0.8rem' }}>Remarks</label>
                                 <input
                                     ref={remarksRef}
                                     type="text"

@@ -4281,7 +4281,7 @@ const EditSalesQuotation = () => {
             )}
 
             {/* Account Creation Modal */}
-            {showAccountCreationModal && (
+            {/* {showAccountCreationModal && (
                 <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
                     <div className="modal-dialog modal-fullscreen">
                         <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
@@ -4309,6 +4309,87 @@ const EditSalesQuotation = () => {
                                     onClick={handleAccountCreationModalClose}
                                 >
                                     <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+                    {/* Account Creation Modal */}
+            {showAccountCreationModal && (
+                <div
+                    className="modal fade show"
+                    tabIndex="-1"
+                    style={{
+                        display: 'block',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        zIndex: 1060
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleAccountCreationModalClose();
+                        }
+                    }}
+                >
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            {/* Minimized Header */}
+                            <div className="modal-header py-1 px-2 bg-primary text-white" style={{ minHeight: '32px', position: 'relative' }}>
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                                    <i className="bi bi-plus-circle me-1" style={{ fontSize: '0.8rem' }}></i>
+                                    Create New Account
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    style={{
+                                        fontSize: '0.6rem',
+                                        margin: '0',
+                                        padding: '0.5rem',
+                                        position: 'relative',
+                                        right: '0'
+                                    }}
+                                    onClick={handleAccountCreationModalClose}
+                                />
+                            </div>
+
+                            {/* Body - with Escape key handler for iframe */}
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/accounts"
+                                    title="Account Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                    onLoad={(e) => {
+                                        // Add Escape key listener to iframe content
+                                        const iframe = e.target;
+                                        const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                                        if (iframeDocument) {
+                                            iframeDocument.addEventListener('keydown', (event) => {
+                                                if (event.key === 'Escape') {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    handleAccountCreationModalClose();
+                                                }
+                                            });
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            {/* Minimized Footer */}
+                            <div className="modal-footer py-1 px-2 bg-light" style={{ minHeight: '36px', borderTop: '1px solid #dee2e6' }}>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-secondary"
+                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                                    onClick={handleAccountCreationModalClose}
+                                >
+                                    <i className="bi bi-arrow-left me-1" style={{ fontSize: '0.7rem' }}></i>
+                                    Close
                                 </button>
                             </div>
                         </div>

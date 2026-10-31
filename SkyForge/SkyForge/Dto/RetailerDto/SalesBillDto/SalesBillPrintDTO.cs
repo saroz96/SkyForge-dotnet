@@ -54,7 +54,8 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public decimal CashRemainingAmount { get; set; }
         public string? CashSettlementStatus { get; set; }
         public string? CashSettlementRemarks { get; set; }
-
+        public decimal CashTenderedAmount { get; set; }
+        public decimal CashChangeAmount { get; set; }
         public string? CashAccount { get; set; }
         public string? CashAccountAddress { get; set; }
         public string? CashAccountPan { get; set; }

@@ -927,22 +927,6 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                 string? settlementType = null;
                 string? settlementStatus = null;
 
-                // if (isCashPayment)
-                // {
-                //     var requestedReceived = dto.CashReceivedAmount ?? grandTotal;
-
-                //     // Clamp to [0, grandTotal]
-                //     if (requestedReceived < 0) requestedReceived = 0m;
-                //     if (requestedReceived > grandTotal) requestedReceived = grandTotal;
-
-                //     cashReceived = Math.Round(requestedReceived, 2);
-                //     cashRemaining = Math.Round(grandTotal - cashReceived, 2);
-
-                //     settlementType = (dto.CashSettlementType ?? (cashRemaining == 0m ? "full" : "partial"))
-                //                         .Trim().ToLower();
-                //     settlementStatus = cashRemaining == 0m ? "Settled" : "Partial";
-                // }
-
                 if (isCashPayment)
                 {
                     var requestedReceived = dto.CashReceivedAmount ?? grandTotal;
@@ -1013,7 +997,9 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                     CashRemainingAmount = cashRemaining,
                     CashSettlementStatus = settlementStatus,
                     CashSettlementDate = isCashPayment ? DateTime.UtcNow : null,
-                    CashSettlementRemarks = dto.CashSettlementRemarks
+                    CashSettlementRemarks = dto.CashSettlementRemarks,
+                    CashTenderedAmount = dto.CashTenderedAmount ?? 0,
+                    CashChangeAmount = dto.CashChangeAmount ?? 0
                 };
 
                 await _context.SalesBills.AddAsync(salesBill);
@@ -6823,6 +6809,8 @@ namespace SkyForge.Services.Retailer.SalesBillServices
                         CashRemainingAmount = salesBill.CashRemainingAmount,
                         CashSettlementStatus = salesBill.CashSettlementStatus,
                         CashSettlementRemarks = salesBill.CashSettlementRemarks,
+                        CashTenderedAmount = salesBill.CashTenderedAmount,
+                        CashChangeAmount = salesBill.CashChangeAmount,
                         Account = salesBill.Account != null ? new AccountPrintDTO
                         {
                             Id = salesBill.Account.Id,

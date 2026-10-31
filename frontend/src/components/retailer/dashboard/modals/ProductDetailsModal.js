@@ -73,6 +73,7 @@ const ProductDetailsModal = ({ product: initialProduct, onClose, onBatchUpdate }
         if (batch) {
             setSelectedBatch({
                 index: batchIndex,
+                nepaliDate:batch.nepaliDate,
                 batchNumber: batch.batchNumber,
                 expiryDate: batch.expiryDate,
                 puPrice: batch.puPrice || 0,
@@ -175,6 +176,7 @@ const ProductDetailsModal = ({ product: initialProduct, onClose, onBatchUpdate }
                         <table className="table table-sm table-hover align-middle mb-0">
                             <thead className="table-light sticky-top" style={{ fontSize: '0.75rem' }}>
                                 <tr>
+                                    <th className="px-2 py-1" style={{ width: '15%' }}>Date</th>
                                     <th className="px-2 py-1" style={{ width: '15%' }}>Batch</th>
                                     <th className="px-2 py-1" style={{ width: '15%' }}>Expiry</th>
                                     <th className="px-2 py-1" style={{ width: '12%' }}>Status</th>
@@ -193,8 +195,9 @@ const ProductDetailsModal = ({ product: initialProduct, onClose, onBatchUpdate }
                                         const status = getExpiryStatus(entry.expiryDate);
                                         return (
                                             <tr key={index} className={status.status} style={{ fontSize: '0.75rem' }}>
+                                                <td className="px-2 py-1">{entry.nepaliDate}</td>
                                                 <td className="px-2 py-1">{entry.batchNumber || '-'}</td>
-                                                <td className="px-2 py-1">{formatDate(entry.expiryDate)}</td>
+                                                <td className="px-2 py-1">{new Date(entry.expiryDate).toLocaleDateString()}</td>
                                                 <td className="px-2 py-1">
                                                     <span className={`expiry-badge-modal ${status.status} px-1 py-0`} style={{ fontSize: '0.7rem' }}>
                                                         {status.text}

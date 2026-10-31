@@ -83,6 +83,8 @@ namespace SkyForge.Dto.RetailerDto.SalesBillDto
         public string? CashSettlementType { get; set; }        // "full" | "partial"
         public decimal? CashReceivedAmount { get; set; }
         public string? CashSettlementRemarks { get; set; }
+        public decimal? CashTenderedAmount { get; set; }
+        public decimal? CashChangeAmount { get; set; }
         public DateTime Date { get; set; }
         public DateTime TransactionDate { get; set; }
         public string? NepaliDate { get; set; }

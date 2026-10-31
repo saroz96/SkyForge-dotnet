@@ -161,6 +161,14 @@ namespace SkyForge.Models.Retailer.Sales
         [StringLength(500)]
         public string? CashSettlementRemarks { get; set; }
 
+        [Column("cash_tendered_amount")]
+        [Precision(18, 2)]
+        public decimal CashTenderedAmount { get; set; } = 0;
+
+        [Column("cash_change_amount")]
+        [Precision(18, 2)]
+        public decimal CashChangeAmount { get; set; } = 0;
+
         [Column("date")]
         public DateTime Date { get; set; }
 

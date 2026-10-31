@@ -61,52 +61,6 @@ const ProductModal = ({ onClose }) => {
     );
 
     // Fetch products from backend with search functionality
-    // const fetchProductsFromBackend = useCallback(async (searchTerm = '', page = 1, append = false) => {
-    //     try {
-    //         setIsSearching(true);
-    //         const response = await api.get('/api/retailer/items/search/items-ledger', {
-    //             params: {
-    //                 search: searchTerm,
-    //                 page: page,
-    //                 limit: 15,
-    //                 vatStatus: vatStatusFilter
-    //             }
-    //         });
-
-    //         if (response.data.success) {
-    //             const productsWithStock = response.data.items.map(item => ({
-    //                 ...item,
-    //                 currentStock: item.currentStock || 0,
-    //                 latestPrice: item.stockEntries && item.stockEntries.length > 0
-    //                     ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.price || 0
-    //                     : 0,
-    //                 latestMarginPercentage: item.stockEntries && item.stockEntries.length > 0
-    //                     ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.marginPercentage || 0
-    //                     : 0
-    //             }));
-
-    //             if (append) {
-    //                 setSearchResults(prev => [...prev, ...productsWithStock]);
-    //             } else {
-    //                 setSearchResults(productsWithStock);
-    //             }
-
-    //             setHasMoreSearchResults(response.data.pagination?.hasNextPage || false);
-    //             setTotalSearchProducts(response.data.pagination?.totalItems || productsWithStock.length);
-    //             setSearchPage(page);
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching products:', error);
-    //         if (error.response?.status === 401) {
-    //             localStorage.removeItem('token');
-    //             window.location.href = '/login';
-    //         }
-    //     } finally {
-    //         setIsSearching(false);
-    //     }
-    // }, [vatStatusFilter]);
-
-    // Fetch products from backend with search functionality
     const fetchProductsFromBackend = useCallback(async (searchTerm = '', page = 1, append = false) => {
         try {
             setIsSearching(true);
@@ -278,6 +232,7 @@ const ProductModal = ({ onClose }) => {
 
         setBatchToUpdate({
             index: batchIndex,
+            nepaliDate:batchData.nepaliDate,
             batchNumber: batchData.batchNumber,
             expiryDate: batchData.expiryDate,
             price: batchData.price,
