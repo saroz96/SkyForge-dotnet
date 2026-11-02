@@ -106,6 +106,15 @@ namespace SkyForge.Models.UserModel
         [MaxLength(500)]
         public string? Notes { get; set; }  // Admin notes
 
+        // NEW (optional but recommended):
+        [MaxLength(128)]
+        public string? BrowserProfileId { get; set; }   // from localStorage; fast-path hint only
+
+        public DateTime? LastSeenAt { get; set; }       // last time this physical device was seen
+
+        // You may keep DeviceFingerprint as-is — but its *meaning* is now
+        // "physical device identity hash", not "browser fingerprint".
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
     }

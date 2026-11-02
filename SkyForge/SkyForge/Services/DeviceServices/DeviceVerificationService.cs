@@ -27,6 +27,108 @@ namespace SkyForge.Services.DeviceServices
 
         // ==================== CLIENT SIDE ====================
 
+        // public async Task<RegisterDeviceResponseDTO> RegisterDeviceAsync(
+        //     Guid userId,
+        //     RegisterDeviceRequestDTO request,
+        //     string? ipAddress,
+        //     string? userAgent)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation("=== RegisterDevice Started for User {UserId} ===", userId);
+
+        //         // Check if device already registered for this user
+        //         var existing = await _context.UserDevices
+        //             .FirstOrDefaultAsync(d => d.UserId == userId && d.DeviceFingerprint == request.DeviceFingerprint);
+
+        //         if (existing != null)
+        //         {
+        //             // Update last seen info
+        //             existing.LastKnownIpAddress = ipAddress;
+        //             existing.UpdatedAt = DateTime.UtcNow;
+        //             await _context.SaveChangesAsync();
+
+        //             await RecordAuditAsync(existing.Id, userId, "RegisterAttempt_AlreadyExists", ipAddress, userAgent);
+
+        //             return new RegisterDeviceResponseDTO
+        //             {
+        //                 Success = true,
+        //                 Message = existing.Status == DeviceStatus.Approved
+        //                     ? "Device already approved."
+        //                     : "Device already registered. Waiting for admin approval.",
+        //                 DeviceId = existing.Id,
+        //                 Status = existing.Status.ToString(),
+        //                 RequiresAdminApproval = existing.Status == DeviceStatus.Pending,
+        //                 AutoApproved = existing.Status == DeviceStatus.Approved
+        //             };
+        //         }
+
+        //         // Check device limit
+        //         var userDeviceCount = await _context.UserDevices
+        //             .CountAsync(d => d.UserId == userId && d.Status != DeviceStatus.Rejected && d.Status != DeviceStatus.Revoked);
+
+        //         if (userDeviceCount >= _maxDevicesPerUser)
+        //         {
+        //             await RecordAuditAsync(null, userId, "RegisterAttempt_LimitReached", ipAddress, userAgent);
+
+        //             return new RegisterDeviceResponseDTO
+        //             {
+        //                 Success = false,
+        //                 Message = $"Device limit reached ({_maxDevicesPerUser}). Please remove an existing device or contact admin.",
+        //                 RequiresAdminApproval = false,
+        //                 AutoApproved = false
+        //             };
+        //         }
+
+        //         // Check if same fingerprint exists for another user (suspicious)
+        //         var fingerprintUsedByOther = await _context.UserDevices
+        //             .AnyAsync(d => d.DeviceFingerprint == request.DeviceFingerprint && d.UserId != userId);
+
+        //         var device = new UserDevice
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             UserId = userId,
+        //             DeviceFingerprint = request.DeviceFingerprint,
+        //             DeviceName = request.DeviceName ?? "Unknown Device",
+        //             OperatingSystem = request.OperatingSystem,
+        //             BrowserName = request.BrowserName,
+        //             BrowserVersion = request.BrowserVersion,
+        //             ScreenResolution = request.ScreenResolution,
+        //             TimeZone = request.TimeZone,
+        //             Language = request.Language,
+        //             DeviceType = DetectDeviceType(request.OperatingSystem),
+        //             RegistrationIpAddress = ipAddress,
+        //             LastKnownIpAddress = ipAddress,
+        //             Status = DeviceStatus.Pending,
+        //             TrustScore = fingerprintUsedByOther ? 10 : 50, // Low trust if reused fingerprint
+        //             CreatedAt = DateTime.UtcNow
+        //         };
+
+        //         _context.UserDevices.Add(device);
+        //         await _context.SaveChangesAsync();
+
+        //         await RecordAuditAsync(device.Id, userId, "Registered", ipAddress, userAgent,
+        //             $"Device: {device.DeviceName}, OS: {device.OperatingSystem}");
+
+        //         _logger.LogInformation("Device {DeviceId} registered for user {UserId}, status: Pending", device.Id, userId);
+
+        //         return new RegisterDeviceResponseDTO
+        //         {
+        //             Success = true,
+        //             Message = "Device registered. Waiting for admin approval.",
+        //             DeviceId = device.Id,
+        //             Status = "Pending",
+        //             RequiresAdminApproval = true,
+        //             AutoApproved = false
+        //         };
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error registering device for user {UserId}", userId);
+        //         throw;
+        //     }
+        // }
+
         public async Task<RegisterDeviceResponseDTO> RegisterDeviceAsync(
             Guid userId,
             RegisterDeviceRequestDTO request,
@@ -37,25 +139,75 @@ namespace SkyForge.Services.DeviceServices
             {
                 _logger.LogInformation("=== RegisterDevice Started for User {UserId} ===", userId);
 
-                // Check if device already registered for this user
+                if (string.IsNullOrWhiteSpace(request.DeviceFingerprint))
+                {
+                    _logger.LogWarning("RegisterDevice called with empty fingerprint for User {UserId}", userId);
+                    return new RegisterDeviceResponseDTO
+                    {
+                        Success = false,
+                        Message = "Device fingerprint is required.",
+                        RequiresAdminApproval = false,
+                        AutoApproved = false
+                    };
+                }
+
+                // ------------------------------------------------------------------
+                // 1) PRIMARY MATCH: same physical device already registered for this user.
+                //    DeviceFingerprint is now the *physical identity* hash — same laptop
+                //    via Chrome, Firefox, Brave, after a browser update, or after a
+                //    screen/resolution change → SAME hash → SAME row.
+                // ------------------------------------------------------------------
                 var existing = await _context.UserDevices
-                    .FirstOrDefaultAsync(d => d.UserId == userId && d.DeviceFingerprint == request.DeviceFingerprint);
+                    .FirstOrDefaultAsync(d => d.UserId == userId
+                                           && d.DeviceFingerprint == request.DeviceFingerprint);
 
                 if (existing != null)
                 {
-                    // Update last seen info
+                    // Refresh "last seen" info. Do NOT touch Status here — the admin's
+                    // decision (Approved / Pending / Rejected / Revoked / Blocked) stands.
                     existing.LastKnownIpAddress = ipAddress;
                     existing.UpdatedAt = DateTime.UtcNow;
+
+                    // Browser-level hint (fast path only, not identity)
+                    if (!string.IsNullOrWhiteSpace(request.BrowserProfileId))
+                        existing.BrowserProfileId = request.BrowserProfileId;
+
+                    // Display metadata — refreshed silently because this is just UI info,
+                    // not identity. Browser version / screen size change freely.
+                    if (!string.IsNullOrWhiteSpace(request.BrowserName))
+                        existing.BrowserName = request.BrowserName;
+
+                    if (!string.IsNullOrWhiteSpace(request.BrowserVersion))
+                        existing.BrowserVersion = request.BrowserVersion;
+
+                    if (!string.IsNullOrWhiteSpace(request.ScreenResolution))
+                        existing.ScreenResolution = request.ScreenResolution;
+
+                    if (!string.IsNullOrWhiteSpace(request.TimeZone))
+                        existing.TimeZone = request.TimeZone;
+
+                    if (!string.IsNullOrWhiteSpace(request.Language))
+                        existing.Language = request.Language;
+
                     await _context.SaveChangesAsync();
 
-                    await RecordAuditAsync(existing.Id, userId, "RegisterAttempt_AlreadyExists", ipAddress, userAgent);
+                    await RecordAuditAsync(
+                        existing.Id, userId, "RegisterAttempt_AlreadyExists",
+                        ipAddress, userAgent,
+                        $"Browser={request.BrowserName ?? "unknown"}; status={existing.Status}");
 
                     return new RegisterDeviceResponseDTO
                     {
                         Success = true,
                         Message = existing.Status == DeviceStatus.Approved
                             ? "Device already approved."
-                            : "Device already registered. Waiting for admin approval.",
+                            : existing.Status == DeviceStatus.Pending
+                                ? "Device already registered. Waiting for admin approval."
+                                : existing.Status == DeviceStatus.Rejected
+                                    ? "Device was rejected by admin. Contact your administrator."
+                                    : existing.Status == DeviceStatus.Revoked
+                                        ? "Device access was revoked. Contact your administrator."
+                                        : "Device access is blocked. Contact your administrator.",
                         DeviceId = existing.Id,
                         Status = existing.Status.ToString(),
                         RequiresAdminApproval = existing.Status == DeviceStatus.Pending,
@@ -63,13 +215,80 @@ namespace SkyForge.Services.DeviceServices
                     };
                 }
 
-                // Check device limit
+                // ------------------------------------------------------------------
+                // 2) ONE-TIME GRACE RE-LINK (remove after ~30 days post-deploy).
+                //    Existing rows in the DB were created with the OLD fingerprint
+                //    formula (which included userAgent, canvas, etc.). The new client
+                //    produces a different hash. Without this block, every returning
+                //    user would spawn a brand-new Pending row after the deploy.
+                //
+                //    We match a recently-used Approved row for the same user with
+                //    matching OS + browser-name, migrate its fingerprint in place, and
+                //    return it as already approved. Delete this whole block once all
+                //    users have logged in at least once with the new client.
+                // ------------------------------------------------------------------
+                if (!string.IsNullOrWhiteSpace(request.OperatingSystem) &&
+                    !string.IsNullOrWhiteSpace(request.BrowserName))
+                {
+                    var grace = await _context.UserDevices
+                        .Where(d => d.UserId == userId
+                                 && d.Status == DeviceStatus.Approved
+                                 && d.OperatingSystem == request.OperatingSystem
+                                 && d.BrowserName == request.BrowserName
+                                 && d.DeviceFingerprint != request.DeviceFingerprint)
+                        .OrderByDescending(d => d.LastUsedAt)
+                        .FirstOrDefaultAsync();
+
+                    if (grace != null && grace.LastUsedAt > DateTime.UtcNow.AddDays(-30))
+                    {
+                        _logger.LogInformation(
+                            "One-time fingerprint migration for device {DeviceId} (user {UserId})",
+                            grace.Id, userId);
+
+                        grace.DeviceFingerprint = request.DeviceFingerprint; // migrate to physical hash
+                        grace.LastKnownIpAddress = ipAddress;
+                        grace.UpdatedAt = DateTime.UtcNow;
+
+                        if (!string.IsNullOrWhiteSpace(request.BrowserProfileId))
+                            grace.BrowserProfileId = request.BrowserProfileId;
+                        if (!string.IsNullOrWhiteSpace(request.BrowserVersion))
+                            grace.BrowserVersion = request.BrowserVersion;
+                        if (!string.IsNullOrWhiteSpace(request.ScreenResolution))
+                            grace.ScreenResolution = request.ScreenResolution;
+
+                        await _context.SaveChangesAsync();
+
+                        await RecordAuditAsync(
+                            grace.Id, userId, "FingerprintMigrated_OneTime",
+                            ipAddress, userAgent,
+                            $"OldHash→NewHash; OS={request.OperatingSystem}; Browser={request.BrowserName}");
+
+                        return new RegisterDeviceResponseDTO
+                        {
+                            Success = true,
+                            Message = "Device recognized and approved.",
+                            DeviceId = grace.Id,
+                            Status = "Approved",
+                            RequiresAdminApproval = false,
+                            AutoApproved = true
+                        };
+                    }
+                }
+
+                // ------------------------------------------------------------------
+                // 3) DEVICE-LIMIT CHECK — only for genuinely new devices.
+                //    (Unchanged from your original logic.)
+                // ------------------------------------------------------------------
                 var userDeviceCount = await _context.UserDevices
-                    .CountAsync(d => d.UserId == userId && d.Status != DeviceStatus.Rejected && d.Status != DeviceStatus.Revoked);
+                    .CountAsync(d => d.UserId == userId
+                                  && d.Status != DeviceStatus.Rejected
+                                  && d.Status != DeviceStatus.Revoked);
 
                 if (userDeviceCount >= _maxDevicesPerUser)
                 {
-                    await RecordAuditAsync(null, userId, "RegisterAttempt_LimitReached", ipAddress, userAgent);
+                    await RecordAuditAsync(
+                        null, userId, "RegisterAttempt_LimitReached", ipAddress, userAgent,
+                        $"Max={_maxDevicesPerUser}; Current={userDeviceCount}");
 
                     return new RegisterDeviceResponseDTO
                     {
@@ -80,15 +299,26 @@ namespace SkyForge.Services.DeviceServices
                     };
                 }
 
-                // Check if same fingerprint exists for another user (suspicious)
+                // ------------------------------------------------------------------
+                // 4) SECONDARY-USER REUSE CHECK — same physical device hash used by
+                //    ANOTHER user. With the new (coarse) hash this means "someone
+                //    else's account on the same physical machine" — a useful risk
+                //    signal. Lower trust, but still allow registration so the admin
+                //    can decide. (Same as before.)
+                // ------------------------------------------------------------------
                 var fingerprintUsedByOther = await _context.UserDevices
-                    .AnyAsync(d => d.DeviceFingerprint == request.DeviceFingerprint && d.UserId != userId);
+                    .AnyAsync(d => d.DeviceFingerprint == request.DeviceFingerprint
+                                && d.UserId != userId);
 
+                // ------------------------------------------------------------------
+                // 5) CREATE A NEW PENDING ROW — genuinely new physical device.
+                // ------------------------------------------------------------------
                 var device = new UserDevice
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    DeviceFingerprint = request.DeviceFingerprint,
+                    DeviceFingerprint = request.DeviceFingerprint,      // physical identity hash
+                    BrowserProfileId = request.BrowserProfileId,        // fast-path hint only
                     DeviceName = request.DeviceName ?? "Unknown Device",
                     OperatingSystem = request.OperatingSystem,
                     BrowserName = request.BrowserName,
@@ -100,17 +330,20 @@ namespace SkyForge.Services.DeviceServices
                     RegistrationIpAddress = ipAddress,
                     LastKnownIpAddress = ipAddress,
                     Status = DeviceStatus.Pending,
-                    TrustScore = fingerprintUsedByOther ? 10 : 50, // Low trust if reused fingerprint
+                    TrustScore = fingerprintUsedByOther ? 10 : 50,
                     CreatedAt = DateTime.UtcNow
                 };
 
                 _context.UserDevices.Add(device);
                 await _context.SaveChangesAsync();
 
-                await RecordAuditAsync(device.Id, userId, "Registered", ipAddress, userAgent,
-                    $"Device: {device.DeviceName}, OS: {device.OperatingSystem}");
+                await RecordAuditAsync(
+                    device.Id, userId, "Registered", ipAddress, userAgent,
+                    $"Device: {device.DeviceName}, OS: {device.OperatingSystem}, Browser: {device.BrowserName}");
 
-                _logger.LogInformation("Device {DeviceId} registered for user {UserId}, status: Pending", device.Id, userId);
+                _logger.LogInformation(
+                    "New physical device {DeviceId} registered for user {UserId}, status: Pending",
+                    device.Id, userId);
 
                 return new RegisterDeviceResponseDTO
                 {

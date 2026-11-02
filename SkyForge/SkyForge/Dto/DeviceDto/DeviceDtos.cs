@@ -4,6 +4,7 @@ namespace SkyForge.Dto.DeviceDto
     public class RegisterDeviceRequestDTO
     {
         public required string DeviceFingerprint { get; set; }
+        public string? BrowserProfileId { get; set; } 
         public string? DeviceName { get; set; }
         public string? OperatingSystem { get; set; }
         public string? BrowserName { get; set; }
@@ -17,6 +18,7 @@ namespace SkyForge.Dto.DeviceDto
     public class VerifyDeviceRequestDTO
     {
         public required string DeviceFingerprint { get; set; }
+        public string? BrowserProfileId { get; set; } 
     }
 
     // Admin → Server: approve/reject
@@ -60,6 +62,7 @@ namespace SkyForge.Dto.DeviceDto
 
         // Device info
         public required string DeviceFingerprint { get; set; }
+        public string? BrowserProfileId { get; set; } 
         public string? DeviceName { get; set; }
         public string? OperatingSystem { get; set; }
         public string? BrowserName { get; set; }

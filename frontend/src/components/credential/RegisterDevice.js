@@ -4,7 +4,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import api from '../services/api';
 import NotificationToast from '../NotificationToast';
-import { getDeviceFingerprint, getDeviceMetadata } from '../../utils/deviceFingerprint';
+import { getDeviceFingerprint, getDeviceMetadata, getBrowserProfileIdSafe } from '../../utils/deviceFingerprint';
 
 const RegisterDevice = () => {
     const navigate = useNavigate();
@@ -80,6 +80,7 @@ const RegisterDevice = () => {
 
                 // 📱 Device info
                 deviceFingerprint: fingerprint,
+                browserProfileId: getBrowserProfileIdSafe(),
                 deviceName: deviceInfo?.deviceName,
                 operatingSystem: deviceInfo?.operatingSystem,
                 browserName: deviceInfo?.browserName,
