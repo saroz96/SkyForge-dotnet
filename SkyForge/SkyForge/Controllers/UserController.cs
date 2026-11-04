@@ -2662,61 +2662,61 @@ namespace SkyForge.Controllers
             }
         }
 
-        // [HttpPost("login")]
-        // public async Task<IActionResult> Login([FromBody] LoginRequest request)
-        // {
-        //     var user = await _userService.AuthenticateAsync(request.Email!, request.Password!);
-        //     if (user == null)
-        //         return Unauthorized(new { success = false, error = "Invalid email or password" });
+        [HttpPost("web-login")]
+        public async Task<IActionResult> WebLogin([FromBody] LoginRequest request)
+        {
+            var user = await _userService.AuthenticateAsync(request.Email!, request.Password!);
+            if (user == null)
+                return Unauthorized(new { success = false, error = "Invalid email or password" });
 
-        //     if (!user.IsEmailVerified)
-        //         return Unauthorized(new { success = false, error = "Please verify your email before logging in" });
+            if (!user.IsEmailVerified)
+                return Unauthorized(new { success = false, error = "Please verify your email before logging in" });
 
-        //     if (!user.IsActive)
-        //         return Unauthorized(new { success = false, error = "Account is deactivated" });
+            if (!user.IsActive)
+                return Unauthorized(new { success = false, error = "Account is deactivated" });
 
-        //     // Get user's primary role
-        //     var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
+            // Get user's primary role
+            var primaryRole = user.UserRoles?.FirstOrDefault(ur => ur.IsPrimary)?.Role;
 
-        //     // Get user's companies
-        //     var userCompanies = await GetUserCompanies(user.Id);
+            // Get user's companies
+            var userCompanies = await GetUserCompanies(user.Id);
 
-        //     // Generate JWT Token
-        //     var token = GenerateJwtToken(user, primaryRole);
+            // Generate JWT Token
+            var token = GenerateJwtToken(user, primaryRole);
 
-        //     // Generate Refresh Token
-        //     var refreshToken = GenerateRefreshToken();
+            // Generate Refresh Token
+            var refreshToken = GenerateRefreshToken();
 
-        //     // Update user with refresh token and activity tracking
-        //     user.RefreshToken = refreshToken;
-        //     user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7); // Refresh token valid for 7 days
-        //     user.LastActivityAt = DateTime.UtcNow;
-        //     user.UpdatedAt = DateTime.UtcNow;
+            // Update user with refresh token and activity tracking
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7); // Refresh token valid for 7 days
+            user.LastActivityAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow;
 
-        //     await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
 
-        //     return Ok(new
-        //     {
-        //         success = true,
-        //         token = token,
-        //         refreshToken = refreshToken,
-        //         user = new
-        //         {
-        //             id = user.Id,
-        //             name = user.Name,
-        //             email = user.Email,
-        //             role = primaryRole?.Name,
-        //             roleId = primaryRole?.Id,
-        //             isAdmin = user.IsAdmin,
-        //             isEmailVerified = user.IsEmailVerified,
-        //             preferences = user.Preferences,
-        //             menuPermissions = user.MenuPermissions
-        //         },
-        //         companies = userCompanies,
-        //         message = "Login successful",
-        //         expiresIn = 3600
-        //     });
-        // }
+            return Ok(new
+            {
+                success = true,
+                token = token,
+                refreshToken = refreshToken,
+                user = new
+                {
+                    id = user.Id,
+                    name = user.Name,
+                    email = user.Email,
+                    role = primaryRole?.Name,
+                    roleId = primaryRole?.Id,
+                    isAdmin = user.IsAdmin,
+                    isEmailVerified = user.IsEmailVerified,
+                    preferences = user.Preferences,
+                    menuPermissions = user.MenuPermissions
+                },
+                companies = userCompanies,
+                message = "Login successful",
+                expiresIn = 3600
+            });
+        }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)

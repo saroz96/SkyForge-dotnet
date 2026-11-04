@@ -685,16 +685,10 @@ const Statement = () => {
         }
     };
 
-    // const buildWhatsAppMessage = useCallback(() => {
-    //     if (!generatedShareLink) return 'Generating link...';
-    //     return `📊 *STATEMENT OF ACCOUNT*\n\n🏢 *Company:* ${data.currentCompanyName || 'N/A'}\n👤 *Party:* ${data.partyName || 'N/A'}\n📅 *Period:* ${dateRange.fromDate} to ${dateRange.toDate}\n\n─────────────────────\n\n🔗 *View your statement anytime:*\n${generatedShareLink}\n\n💡 *This link is permanent and always shows your latest statement.*\n\n─────────────────────\n📅 Generated: ${new Date().toLocaleString()}\n🔹 Powered by Ams Software`;
-    // }, [data, dateRange, generatedShareLink]);
-
-        const buildWhatsAppMessage = useCallback(() => {
+    const buildWhatsAppMessage = useCallback(() => {
         if (!generatedShareLink) return 'Generating link...';
-        return `📊 *View your statement anytime*\n\n*STATEMENT OF ACCOUNT*\n\n🏢 *Company:* ${data.currentCompanyName || 'N/A'}\n👤 *Party:* ${data.partyName || 'N/A'}\n📅 *Period:* ${dateRange.fromDate} to ${dateRange.toDate}\n\n─────────────────────\n\n💡 *This link is permanent and always shows your latest statement.*\n\n─────────────────────\n📅 Generated: ${new Date().toLocaleString()}\n🔹 Powered by Ams Software`;
+        return `📊 *STATEMENT OF ACCOUNT*\n\n🏢 *Company:* ${data.currentCompanyName || 'N/A'}\n👤 *Party:* ${data.partyName || 'N/A'}\n📅 *Period:* ${dateRange.fromDate} to ${dateRange.toDate}\n\n─────────────────────\n\n🔗 *View your statement anytime:*\n${generatedShareLink}\n\n💡 *This link is permanent and always shows your latest statement.*\n\n─────────────────────\n📅 Generated: ${new Date().toLocaleString()}\n🔹 Powered by Ams Software`;
     }, [data, dateRange, generatedShareLink]);
-
 
     const handleOpenWhatsAppModal = async () => {
         const rowsToShare = viewMode === 'regular' ? (filteredStatement.length > 0 ? filteredStatement : data.statement) : data.itemwiseStatement;
