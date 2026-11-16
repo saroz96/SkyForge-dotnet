@@ -137,6 +137,19 @@ const getCurrentNepaliDate = () => {
     }
 };
 
+const MARGIN_MAX = 1000;
+
+const validateMarginPercentage = (value) => {
+    const num = parseFloat(value);
+    if (value === '' || value === null || value === undefined) return { valid: true };
+    if (isNaN(num)) return { valid: false, message: 'Margin % must be a number.' };
+    if (num < 0) return { valid: false, message: 'Margin % cannot be negative.' };
+    if (num > MARGIN_MAX) {
+        return { valid: false, message: `Margin % cannot exceed ${MARGIN_MAX}%.` };
+    }
+    return { valid: true };
+};
+
 const EditPurchase = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -1651,6 +1664,22 @@ const EditPurchase = () => {
 
     // Function to save sales price
     const saveSalesPrice = () => {
+        
+        const marginCheck = validateMarginPercentage(salesPriceData.marginPercentage);
+        if (!marginCheck.valid) {
+            setNotification({
+                show: true,
+                message: marginCheck.message,
+                type: 'error'
+            });
+            setTimeout(() => {
+                const marginInput = document.getElementById('marginPercentage');
+                if (marginInput) { marginInput.focus(); marginInput.select(); }
+            }, 100);
+            return;
+        }
+
+
         if (isHeaderMode) {
             if (!selectedItemForInsert) return;
 
@@ -2107,6 +2136,60 @@ const EditPurchase = () => {
 
     const handleSubmit = async (e, print = false) => {
         e.preventDefault();
+        if (!formData.accountId) {
+            setNotification({
+                show: true,
+                message: 'Please select a party (supplier) before saving.',
+                type: 'error'
+            });
+
+            setTimeout(() => {
+                const accountInput = document.getElementById('accountSearch');
+                if (accountInput) {
+                    accountInput.focus();
+                    accountInput.select();
+                    accountInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+
+            return; // stop submission
+        }
+
+        // also guard against empty items
+        if (items.length === 0) {
+            setNotification({
+                show: true,
+                message: 'Please add at least one item before saving.',
+                type: 'error'
+            });
+            return;
+        }
+
+        // ✅ Validate each item's margin percentage
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const check = validateMarginPercentage(item.marginPercentage);
+            if (!check.valid) {
+                setNotification({
+                    show: true,
+                    message: `Item #${i + 1} (${item.name || 'Unknown'}): ${check.message}`,
+                    type: 'error'
+                });
+
+                // Focus the offending margin input if it exists in the table
+                setTimeout(() => {
+                    const marginInput = document.getElementById(`marginPercentage-${i}`);
+                    if (marginInput) {
+                        marginInput.focus();
+                        marginInput.select();
+                        marginInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+
+                return;
+            }
+        }
+
         setIsSaving(true);
 
         try {

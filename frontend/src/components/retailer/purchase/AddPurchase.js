@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import NepaliDate from 'nepali-date-converter';
 import axios from 'axios';
 import Header from '../Header';
 import '../../../stylesheet/retailer/purchase/AddPurchase.css'
@@ -266,6 +265,19 @@ const safeParseNepaliDate = (dateStr) => {
     }
 
     return corrected;
+};
+
+const MARGIN_MAX = 1000;
+
+const validateMarginPercentage = (value) => {
+    const num = parseFloat(value);
+    if (value === '' || value === null || value === undefined) return { valid: true };
+    if (isNaN(num)) return { valid: false, message: 'Margin % must be a number.' };
+    if (num < 0) return { valid: false, message: 'Margin % cannot be negative.' };
+    if (num > MARGIN_MAX) {
+        return { valid: false, message: `Margin % cannot exceed ${MARGIN_MAX}%.` };
+    }
+    return { valid: true };
 };
 
 const AddPurchase = () => {
@@ -1476,20 +1488,10 @@ const AddPurchase = () => {
             effectiveDiscount = preciseAdd(discountForTaxable, discountForNonTaxable);
         }
 
-        // const finalTaxableAmount = preciseSubtract(
-        //     preciseAdd(taxableAmount, taxableCCAmount),
-        //     discountForTaxable
-        // );
         const finalTaxableAmount = preciseSubtract(
             taxableAmount,
             discountForTaxable
         );
-
-
-        // const finalNonTaxableAmount = preciseSubtract(
-        //     preciseAdd(nonTaxableAmount, nonTaxableCCAmount),
-        //     discountForNonTaxable
-        // );
 
         const finalNonTaxableAmount = preciseSubtract(
             nonTaxableAmount,
@@ -1500,11 +1502,6 @@ const AddPurchase = () => {
         if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
             vatAmount = preciseMultiply(finalTaxableAmount, formData.vatPercentage / 100);
         }
-
-        // let totalBeforeRoundOff = preciseAdd(
-        //     preciseAdd(finalTaxableAmount, finalNonTaxableAmount),
-        //     vatAmount
-        // );
 
         // Sum of taxable + non-taxable + VAT
         let totalBeforeRoundOff = preciseAdd(
@@ -1864,6 +1861,20 @@ const AddPurchase = () => {
     };
 
     const saveSalesPrice = () => {
+        const marginCheck = validateMarginPercentage(salesPriceData.marginPercentage);
+        if (!marginCheck.valid) {
+            setNotification({
+                show: true,
+                message: marginCheck.message,
+                type: 'error'
+            });
+            setTimeout(() => {
+                const marginInput = document.getElementById('marginPercentage');
+                if (marginInput) { marginInput.focus(); marginInput.select(); }
+            }, 100);
+            return;
+        }
+
         if (isHeaderMode) {
             // Handle header mode
             const unitData = selectedItemForInsert.unit || {};
@@ -2190,6 +2201,61 @@ const AddPurchase = () => {
 
     const handleSubmit = async (e, print = false) => {
         e.preventDefault();
+
+        if (!formData.accountId) {
+            setNotification({
+                show: true,
+                message: 'Please select a party (supplier) before saving.',
+                type: 'error'
+            });
+
+            setTimeout(() => {
+                const accountInput = document.getElementById('accountSearch');
+                if (accountInput) {
+                    accountInput.focus();
+                    accountInput.select();
+                    accountInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+
+            return; // stop submission
+        }
+
+        // also guard against empty items
+        if (items.length === 0) {
+            setNotification({
+                show: true,
+                message: 'Please add at least one item before saving.',
+                type: 'error'
+            });
+            return;
+        }
+
+        // ✅ Validate each item's margin percentage
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const check = validateMarginPercentage(item.marginPercentage);
+            if (!check.valid) {
+                setNotification({
+                    show: true,
+                    message: `Item #${i + 1} (${item.name || 'Unknown'}): ${check.message}`,
+                    type: 'error'
+                });
+
+                // Focus the offending margin input if it exists in the table
+                setTimeout(() => {
+                    const marginInput = document.getElementById(`marginPercentage-${i}`);
+                    if (marginInput) {
+                        marginInput.focus();
+                        marginInput.select();
+                        marginInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+
+                return;
+            }
+        }
+
         setIsSaving(true);
 
         try {
@@ -2211,7 +2277,6 @@ const AddPurchase = () => {
             // Prepare data according to your CreatePurchaseBillDTO
             const billData = {
                 accountId: formData.accountId,
-                // billNumber: formData.billNumber,
                 partyBillNumber: formData.partyBillNumber,
                 paymentMode: formData.paymentMode,
                 isVatExempt: formData.isVatExempt === 'true',
@@ -5678,42 +5743,6 @@ const AddPurchase = () => {
             {showProductModal && (
                 <ProductModal onClose={() => setShowProductModal(false)} />
             )}
-
-            {/* Account Creation Modal */}
-            {/* {showAccountCreationModal && (
-                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
-                    <div className="modal-dialog modal-fullscreen">
-                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
-                            <div className="modal-header bg-primary text-white">
-                                <h5 className="modal-title">Create New Account</h5>
-                                <div className="d-flex align-items-center">
-                                    <button
-                                        type="button"
-                                        className="btn-close btn-close-white"
-                                        onClick={handleAccountCreationModalClose}
-                                    ></button>
-                                </div>
-                            </div>
-                            <div className="modal-body p-0">
-                                <iframe
-                                    src="/retailer/accounts"
-                                    title="Account Creation"
-                                    style={{ width: '100%', height: '100%', border: 'none' }}
-                                />
-                            </div>
-                            <div className="modal-footer bg-light">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={handleAccountCreationModalClose}
-                                >
-                                    <i className="bi bi-arrow-left me-2"></i>Close
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )} */}
 
             {/* Account Creation Modal */}
             {showAccountCreationModal && (

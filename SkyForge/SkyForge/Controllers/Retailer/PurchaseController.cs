@@ -795,6 +795,7 @@ namespace SkyForge.Controllers.Retailer
             }
         }
 
+
         // GET: api/retailer/purchase/last-purchase-data/{itemId}
         [HttpGet("purchase/last-purchase-data/{itemId}")]
         public async Task<IActionResult> GetLastPurchaseData(Guid itemId)
