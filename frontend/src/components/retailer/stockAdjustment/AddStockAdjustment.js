@@ -3904,6 +3904,7 @@ const AddStockAdjustment = () => {
                                                 backgroundColor: '#f8f9fa'
                                             }}>
                                                 <tr className="text-center">
+                                                    <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Date</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Batch No.</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Expiry Date</th>
                                                     <th className="py-0" style={{ padding: '0px', fontSize: '0.75rem' }}>Stock</th>
@@ -4054,8 +4055,9 @@ const AddStockAdjustment = () => {
                                                                     : `Total: ${totalStock} | Used in current bill: ${usedStock} | Available: ${availableStock}\nOut of stock`
                                                                 }
                                                             >
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{new Date(entry.date).toLocaleDateString()}</td>
                                                                 <td className="align-middle" style={{ padding: '3px' }}>{entry.batchNumber || 'N/A'}</td>
-                                                                <td className="align-middle" style={{ padding: '3px' }}>{formatDateForInput(entry.expiryDate)}</td>
+                                                                <td className="align-middle" style={{ padding: '3px' }}>{new Date(entry.expiryDate).toLocaleDateString()}</td>
                                                                 <td className="align-middle fw-semibold" style={{ padding: '3px' }}>
                                                                     <span
                                                                         style={{
