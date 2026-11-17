@@ -1937,80 +1937,39 @@ const Statement = () => {
 
     // --- Keyboard & Save ---
     // ✅ REWRITTEN: Arrow-key navigation with auto-scroll into view
-    // useEffect(() => {
-    //     const handleKeyDown = (e) => {
-    //         if (filteredStatement.length === 0) return;
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (filteredStatement.length === 0) return;
 
-    //         // Don't hijack arrow keys when user is typing in an input/select/textarea
-    //         const tag = document.activeElement.tagName;
-    //         if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+            // Don't hijack arrow keys when user is typing in an input/select/textarea
+            const tag = document.activeElement.tagName;
+            if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
 
-    //         if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
 
-    //         e.preventDefault();
+            e.preventDefault();
 
-    //         setSelectedRowIndex(prev => {
-    //             let next;
-    //             if (e.key === 'ArrowDown') {
-    //                 // From -1, first ArrowDown selects row 0
-    //                 next = prev < 0 ? 0 : Math.min(filteredStatement.length - 1, prev + 1);
-    //             } else {
-    //                 // From -1 or 0, ArrowUp stays at 0
-    //                 next = prev <= 0 ? 0 : prev - 1;
-    //             }
+            setSelectedRowIndex(prev => {
+                let next;
+                if (e.key === 'ArrowDown') {
+                    // From -1, first ArrowDown selects row 0
+                    next = prev < 0 ? 0 : Math.min(filteredStatement.length - 1, prev + 1);
+                } else {
+                    // From -1 or 0, ArrowUp stays at 0
+                    next = prev <= 0 ? 0 : prev - 1;
+                }
 
-    //             // Auto-scroll the virtualized list so the selected row is visible
-    //             if (next >= 0 && listRef.current) {
-    //                 listRef.current.scrollToItem(next, 'smart');
-    //             }
+                // Auto-scroll the virtualized list so the selected row is visible
+                if (next >= 0 && listRef.current) {
+                    listRef.current.scrollToItem(next, 'smart');
+                }
 
-    //             return next;
-    //         });
-    //     };
-    //     window.addEventListener('keydown', handleKeyDown);
-    //     return () => window.removeEventListener('keydown', handleKeyDown);
-    // }, [filteredStatement]);
-
-    // ✅ SMOOTH arrow-key navigation — uses scrollIntoView on the rendered row's
-// DOM node so the browser does the minimum smooth scroll (same feel as
-// PublicShareStatement).
-useEffect(() => {
-    const handleKeyDown = (e) => {
-        if (filteredStatement.length === 0) return;
-
-        const tag = document.activeElement.tagName;
-        if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-
-        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-        e.preventDefault();
-
-        setSelectedRowIndex(prev => {
-            let next;
-            if (e.key === 'ArrowDown') {
-                next = prev < 0 ? 0 : Math.min(filteredStatement.length - 1, prev + 1);
-            } else {
-                next = prev <= 0 ? 0 : prev - 1;
-            }
-
-            if (next >= 0) {
-                // react-window renders each row inside .st-table-wrap.
-                // Give the selected row a data-index and let the browser
-                // scroll it into view smoothly.
-                requestAnimationFrame(() => {
-                    const wrap = tableBodyRef.current;
-                    if (!wrap) return;
-                    const rowEl = wrap.querySelector(`[data-row-index="${next}"]`);
-                    if (rowEl) {
-                        rowEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                    }
-                });
-            }
-            return next;
-        });
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-}, [filteredStatement]);
+                return next;
+            });
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [filteredStatement]);
 
     useEffect(() => {
         const handleF9KeyDown = (e) => { if (e.key === 'F9') { e.preventDefault(); setShowProductModal(prev => !prev); } };
@@ -2565,7 +2524,6 @@ useEffect(() => {
 
         return (
             <div
-            data-row-index={index} 
                 style={{
                     ...style,
                     display: 'flex',
