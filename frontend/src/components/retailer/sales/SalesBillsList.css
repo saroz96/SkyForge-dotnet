@@ -166,3 +166,12 @@
   .sb-field--search { width: calc(33% - 0.2rem); }
   .sb-field--select { width: calc(33% - 0.2rem); }
 }
+
+/* ---------- Selected row (arrow-key navigation / click) ---------- */
+.sb-row.sb-row--selected {
+  background-color: #2563eb !important;
+  color: #ffffff;
+}
+.sb-row.sb-row--selected:hover {
+  background-color: #1d4ed8 !important;
+}
