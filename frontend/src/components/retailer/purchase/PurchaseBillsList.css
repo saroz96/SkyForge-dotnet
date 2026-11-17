@@ -149,3 +149,12 @@
   .pb-field--search { width: calc(33% - 0.2rem); }
   .pb-field--select { width: calc(33% - 0.2rem); }
 }
+
+/* ---------- Selected row (arrow-key navigation / click) ---------- */
+.pb-row.pb-row--selected {
+  background-color: #2563eb !important;
+  color: #ffffff;
+}
+.pb-row.pb-row--selected:hover {
+  background-color: #1d4ed8 !important;
+}

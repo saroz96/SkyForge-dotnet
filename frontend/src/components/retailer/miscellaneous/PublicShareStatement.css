@@ -289,3 +289,16 @@
         border-radius: 0;
     }
 }
+
+/* ---------- Selected row (arrow-key navigation / click) ---------- */
+.ps-table tbody tr.ps-row--selected {
+    background: #2563eb !important;
+    color: #ffffff;
+}
+.ps-table tbody tr.ps-row--selected td {
+    color: #ffffff !important;
+    border-right-color: #1d4ed8;
+}
+.ps-table tbody tr.ps-row--selected:hover {
+    background: #2563eb !important;
+}
